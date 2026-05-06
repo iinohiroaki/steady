@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#7c6af7">
+<title>STEADY DOJO QUEST — HOME / METRO / 道場（v3.2.0r2）</title>
+
+<!-- PWA manifest（物理化・3 HTML 共通） -->
+<link rel="manifest" href="./manifest.webmanifest">
+
+<!-- iOS Safari A2HS 用メタ -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="STEADY">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="apple-touch-icon" sizes="192x192" href="./icon-192.png">
+<link rel="apple-touch-icon" sizes="512x512" href="./icon-512.png">
+<link rel="icon" type="image/svg+xml" href="./steady-icon.svg">
+
+<!-- 共通スタイル -->
+<link rel="stylesheet" href="./steady-shared.css">
+
+<!-- ローカル vendor（CDN落ち耐性） -->
+<script src="./vendor/tone.js"></script>
+<script src="./vendor/chart.js"></script>
+
+<!-- 共通スクリプト（migration / SW登録 / persist / theme / ナビ） -->
+<script src="./steady-shared.js"></script>
+
+<!-- B5: STEADY MIDI spec（p1/p2/p3/p4 サブセット・B6-B7 で順次拡張）
+     spec § shared_javascript_module_design 準拠：window.STEADY_MIDI_SPEC へ DOM 注入 -->
+<script type="application/json" id="steady-midi-spec">
+{
+  "schema_version": "1.0.0",
+  "common": {
+    "drum_kit_mapping": {
+      "C2": "kick", "D2": "snare", "E2": "snare_ghost",
+      "F#2": "hihat_closed", "G#2": "hihat_quarter_open",
+      "A2": "hihat_half_open", "A#2": "hihat_open",
+      "C#3": "ride", "D#3": "crash", "F3": "ride_bell",
+      "B2": "tom_high", "G2": "tom_mid", "F2": "tom_low"
+    },
+    "velocity_levels": { "ghost": 0.35, "normal": 0.7, "accent": 0.95 }
+  },
+  "patterns": [
+    {
+      "id": "p1_six_stroke",
+      "display_name": "Six Stroke Roll",
+      "bpm_range": [60, 180],
+      "bpm_recommended_progression": [60, 70, 80, 90, 100],
+      "time_signature": "4/4",
+      "length_bars": 2,
+      "stick_pattern": "RLLRRL x 4",
+      "midi_notes": [
+        { "time": "0:0:0", "note": "D2", "velocity": 0.95, "stick": "R" },
+        { "time": "0:0:1", "note": "D2", "velocity": 0.7,  "stick": "L" },
+        { "time": "0:0:2", "note": "D2", "velocity": 0.7,  "stick": "L" },
+        { "time": "0:0:3", "note": "D2", "velocity": 0.7,  "stick": "R" },
+        { "time": "0:1:0", "note": "D2", "velocity": 0.95, "stick": "R" },
+        { "time": "0:1:1", "note": "D2", "velocity": 0.7,  "stick": "L" },
+        { "time": "0:1:2", "note": "D2", "velocity": 0.7,  "stick": "R" },
+        { "time": "0:1:3", "note": "D2", "velocity": 0.7,  "stick": "L" },
+        { "time": "0:2:0", "note": "D2", "velocity": 0.95, "stick": "L" },
+        { "time": "0:2:1", "note": "D2", "velocity": 0.7,  "stick": "R" },
+        { "time": "0:2:2", "note": "D2", "velocity": 0.7,  "stick": "R" },
+        { "time": "0:2:3", "note": "D2", "velocity": 0.7,  "stick": "L" },
+        { "time": "0:3:0", "note": "D2", "velocity": 0.95, "stick": "L" },
+        { "time": "0:3:1", "note": "D2", "velocity": 0.7,  "stick": "R" },
+        { "time": "0:3:2", "note": "D2", "velocity": 0.7,  "stick": "L" },
+        { "time": "0:3:3", "note": "D2", "velocity": 0.7,  "stick": "R" },
+        { "time": "0:0:0", "note": "C2", "velocity": 0.85, "stick": "K" },
+        { "time": "0:2:0", "note": "C2", "velocity": 0.85, "stick": "K" }
+      ],
+      "onomatopoeia_sync": [
+        { "time": "0:0:0", "syllable": "ド" }, { "time": "0:0:1", "syllable": "ド" },
+        { "time": "0:0:2", "syllable": "タ" }, { "time": "0:0:3", "syllable": "ド" },
+        { "time": "0:1:0", "syllable": "タ" }, { "time": "0:1:2", "syllable": "ド" },
+        { "time": "0:2:0", "syllable": "ド" }, { "time": "0:2:1", "syllable": "ド" },
+        { "time": "0:2:2", "syllable": "タ" }, { "time": "0:2:3", "syllable": "ド" },
+        { "time": "0:3:0", "syllable": "タ" }, { "time": "0:3:2", "syllable": "ド" }
+      ]
+    },
+    {
+      "id": "p2_sizzle_hat_4steps",
+      "display_name": "Sizzle Hat 4段階",
+      "bpm_range": [60, 200],
+      "bpm_recommended_progression": [80, 100, 120, 140],
+      "time_signature": "4/4",
+      "length_bars": 4,
+      "variations": [
+        { "step": 1, "openness": 0,   "label": "closed",    "decay": 0.05, "onomatopoeia": "ツッ",   "note": "F#2" },
+        { "step": 2, "openness": 25,  "label": "1/4 open",  "decay": 0.12, "onomatopoeia": "チッ",   "note": "G#2" },
+        { "step": 3, "openness": 50,  "label": "1/2 open",  "decay": 0.25, "onomatopoeia": "シャッ", "note": "A2"  },
+        { "step": 4, "openness": 100, "label": "full open", "decay": 0.6,  "onomatopoeia": "シャー", "note": "A#2" }
+      ],
+      "groove_per_bar": [
+        { "time": "0:0:0", "track": "BD" },
+        { "time": "0:0:0", "track": "HH" },
+        { "time": "0:1:0", "track": "SD" },
+        { "time": "0:1:0", "track": "HH" },
+        { "time": "0:2:0", "track": "BD" },
+        { "time": "0:2:0", "track": "HH" },
+        { "time": "0:3:0", "track": "SD" },
+        { "time": "0:3:0", "track": "HH" }
+      ],
+      "onomatopoeia_per_bar": [
+        { "time": "0:0:0" },
+        { "time": "0:1:0" },
+        { "time": "0:2:0" },
+        { "time": "0:3:0" }
+      ]
+    },
+    {
+      "id": "p3_halftime_shuffle",
+      "display_name": "Half-time Shuffle",
+      "bpm_range": [70, 130],
+      "bpm_recommended_progression": [70, 100, 120],
+      "time_signature": "4/4",
+      "length_bars": 2,
+      "feel": "shuffle",
+      "swing_amount": 0.58,
+      "halftime": true,
+      "midi_notes": [
+        { "time": "0:0:0", "note": "C2",  "duration": "8n", "velocity": 0.9,  "stick": "K" },
+        { "time": "0:0:0", "note": "F#2", "duration": "8n", "velocity": 0.65, "stick": "R" },
+        { "time": "0:0:2", "note": "F#2", "duration": "8n", "velocity": 0.55, "stick": "R" },
+        { "time": "0:1:0", "note": "F#2", "duration": "8n", "velocity": 0.65, "stick": "R" },
+        { "time": "0:1:2", "note": "F#2", "duration": "8n", "velocity": 0.55, "stick": "R" },
+        { "time": "0:2:0", "note": "D2",  "duration": "8n", "velocity": 0.95, "stick": "L" },
+        { "time": "0:2:0", "note": "F#2", "duration": "8n", "velocity": 0.65, "stick": "R" },
+        { "time": "0:2:2", "note": "F#2", "duration": "8n", "velocity": 0.55, "stick": "R" },
+        { "time": "0:3:0", "note": "F#2", "duration": "8n", "velocity": 0.65, "stick": "R" },
+        { "time": "0:3:2", "note": "F#2", "duration": "8n", "velocity": 0.55, "stick": "R" }
+      ],
+      "onomatopoeia_sync": [
+        { "time": "0:0:0", "syllable": "ドッ" },
+        { "time": "0:1:0", "syllable": "ティ" },
+        { "time": "0:2:0", "syllable": "タッ" },
+        { "time": "0:3:0", "syllable": "ティ" }
+      ]
+    },
+    {
+      "id": "p4_4bar_fills",
+      "display_name": "4-bar fills",
+      "bpm_range": [80, 160],
+      "bpm_recommended_progression": [100, 120, 140],
+      "time_signature": "4/4",
+      "length_bars": 4,
+      "structure": "3小節 groove + 4小節目 fill",
+      "fill_types": [
+        { "id": "f1",  "name": "tom 巡回",            "onomatopoeia": "ドコドコドンッ" },
+        { "id": "f2",  "name": "SD 16分連打",         "onomatopoeia": "タカタカタカタン" },
+        { "id": "f3",  "name": "16分 linear",         "onomatopoeia": "ドタチドタチタン" },
+        { "id": "f4",  "name": "6連符 SD",            "onomatopoeia": "タラタラタラタン" },
+        { "id": "f5",  "name": "8分→6連 切替",        "onomatopoeia": "タンタンタラタラタン" },
+        { "id": "f6",  "name": "tom 16分 + Crash",    "onomatopoeia": "ドコドコシャーン" },
+        { "id": "f7",  "name": "BD 連打 + SD",        "onomatopoeia": "ドドドタンッ" },
+        { "id": "f8",  "name": "ghost → accent",      "onomatopoeia": "ぱたぱたぱたタン" },
+        { "id": "f9",  "name": "tom-tom-SD-Crash",    "onomatopoeia": "ドンドンタンシャーン" },
+        { "id": "f10", "name": "stop fill",           "onomatopoeia": "タン___タン" }
+      ],
+      "midi_notes_groove_per_bar": [
+        { "time": "0:0:0", "note": "C2",  "duration": "8n", "velocity": 0.9 },
+        { "time": "0:0:0", "note": "F#2", "duration": "8n", "velocity": 0.7 },
+        { "time": "0:0:2", "note": "F#2", "duration": "8n", "velocity": 0.6 },
+        { "time": "0:1:0", "note": "F#2", "duration": "8n", "velocity": 0.7 },
+        { "time": "0:1:2", "note": "F#2", "duration": "8n", "velocity": 0.6 },
+        { "time": "0:2:0", "note": "D2",  "duration": "8n", "velocity": 0.95 },
+        { "time": "0:2:0", "note": "F#2", "duration": "8n", "velocity": 0.7 },
+        { "time": "0:2:2", "note": "F#2", "duration": "8n", "velocity": 0.6 },
+        { "time": "0:3:0", "note": "F#2", "duration": "8n", "velocity": 0.7 },
+        { "time": "0:3:2", "note": "F#2", "duration": "8n", "velocity": 0.6 }
+      ]
+    },
+    {
+      "id": "p5_octopus",
+      "display_name": "Octopus",
+      "bpm_range": [80, 180],
+      "bpm_recommended_progression": [100, 115, 130],
+      "time_signature": "4/4",
+      "length_bars": 1,
+      "density": "8分音符オール埋め＋BD16分連打",
+      "midi_notes": [
+        { "time": "0:0:0", "note": "C2",  "velocity": 0.7 },
+        { "time": "0:0:1", "note": "C2",  "velocity": 0.7 },
+        { "time": "0:0:0", "note": "F#2", "velocity": 0.7 },
+        { "time": "0:0:2", "note": "F#2", "velocity": 0.7 },
+        { "time": "0:1:0", "note": "F#2", "velocity": 0.7 },
+        { "time": "0:1:2", "note": "F#2", "velocity": 0.7 },
+        { "time": "0:2:0", "note": "D2",  "velocity": 0.95 },
+        { "time": "0:2:0", "note": "F#2", "velocity": 0.7 },
+        { "time": "0:2:2", "note": "F#2", "velocity": 0.7 },
+        { "time": "0:3:0", "note": "C2",  "velocity": 0.7 },
+        { "time": "0:3:1", "note": "C2",  "velocity": 0.7 },
+        { "time": "0:3:0", "note": "F#2", "velocity": 0.7 },
+        { "time": "0:3:2", "note": "F#2", "velocity": 0.7 }
+      ],
+      "onomatopoeia_sync": [
+        { "time": "0:0:0", "syllable": "ドド" },
+        { "time": "0:0:2", "syllable": "ンタ" },
+        { "time": "0:1:0", "syllable": "ティ" },
+        { "time": "0:1:2", "syllable": "タッ" },
+        { "time": "0:2:0", "syllable": "タン" },
+        { "time": "0:2:2", "syllable": "ティ" },
+        { "time": "0:3:0", "syllable": "ドド" },
+        { "time": "0:3:2", "syllable": "ドドド" }
+      ]
+    },
+    {
+      "id": "p6_crash_quarter",
+      "display_name": "Crash 4分",
+      "bpm_range": [100, 200],
+      "bpm_recommended_progression": [120, 140, 160],
+      "time_signature": "4/4",
+      "length_bars": 1,
+      "structure": "4分音符全クラッシュ＋BD/SD交互",
+      "midi_notes": [
+        { "time": "0:0:0", "note": "C2",  "velocity": 0.95 },
+        { "time": "0:0:0", "note": "D#3", "velocity": 0.95 },
+        { "time": "0:1:0", "note": "D2",  "velocity": 0.95 },
+        { "time": "0:1:0", "note": "D#3", "velocity": 0.95 },
+        { "time": "0:2:0", "note": "C2",  "velocity": 0.95 },
+        { "time": "0:2:0", "note": "D#3", "velocity": 0.95 },
+        { "time": "0:3:0", "note": "D2",  "velocity": 0.95 },
+        { "time": "0:3:0", "note": "D#3", "velocity": 0.95 }
+      ],
+      "onomatopoeia_sync": [
+        { "time": "0:0:0", "syllable": "シャーン" },
+        { "time": "0:1:0", "syllable": "シャーン" },
+        { "time": "0:2:0", "syllable": "シャーン" },
+        { "time": "0:3:0", "syllable": "シャーン" }
+      ]
+    },
+    {
+      "id": "p7_ride_bell",
+      "display_name": "Ride Bell",
+      "bpm_range": [80, 180],
+      "bpm_recommended_progression": [100, 120, 140],
+      "time_signature": "4/4",
+      "length_bars": 1,
+      "structure": "4分音符ベル＋BD/SD交互（読み取り専用）",
+      "midi_notes": [
+        { "time": "0:0:0", "note": "C2",  "velocity": 0.9 },
+        { "time": "0:0:0", "note": "F3",  "velocity": 0.85 },
+        { "time": "0:1:0", "note": "D2",  "velocity": 0.9 },
+        { "time": "0:1:0", "note": "F3",  "velocity": 0.85 },
+        { "time": "0:2:0", "note": "C2",  "velocity": 0.9 },
+        { "time": "0:2:0", "note": "F3",  "velocity": 0.85 },
+        { "time": "0:3:0", "note": "D2",  "velocity": 0.9 },
+        { "time": "0:3:0", "note": "F3",  "velocity": 0.85 }
+      ],
+      "onomatopoeia_sync": [
+        { "time": "0:0:0", "syllable": "カン" },
+        { "time": "0:1:0", "syllable": "カン" },
+        { "time": "0:2:0", "syllable": "カン" },
+        { "time": "0:3:0", "syllable": "カン" }
+      ]
+    },
+    {
+      "id": "p8_subtractive",
+      "display_name": "Subtractive",
+      "bpm_range": [70, 130],
+      "bpm_recommended_progression": [70, 100, 120],
+      "bpm_avoid_band": 85,
+      "time_signature": "4/4",
+      "length_bars": 4,
+      "swing_amount": 0,
+      "structure": "4小節ローテ：v1=2拍目SD抜き／v2=BD1拍目のみ／v3=HH表拍のみ／v4=全要素半減",
+      "variations": [
+        { "id": "v1", "label": "2拍目SD抜き",   "color": "#5B8DEF" },
+        { "id": "v2", "label": "BD 1拍目のみ", "color": "#4CAF50" },
+        { "id": "v3", "label": "HH 表拍のみ",  "color": "#FF9800" },
+        { "id": "v4", "label": "全要素半減",   "color": "#9C27B0" }
+      ],
+      "midi_notes": [
+        { "time": "0:0:0", "note": "C2",  "velocity": 0.9,  "variation": "v1" },
+        { "time": "0:0:0", "note": "F#2", "velocity": 0.7,  "variation": "v1" },
+        { "time": "0:0:2", "note": "F#2", "velocity": 0.65, "variation": "v1" },
+        { "time": "0:1:0", "note": "F#2", "velocity": 0.7,  "variation": "v1" },
+        { "time": "0:1:2", "note": "F#2", "velocity": 0.65, "variation": "v1" },
+        { "time": "0:2:0", "note": "C2",  "velocity": 0.9,  "variation": "v1" },
+        { "time": "0:2:0", "note": "F#2", "velocity": 0.7,  "variation": "v1" },
+        { "time": "0:2:2", "note": "F#2", "velocity": 0.65, "variation": "v1" },
+        { "time": "0:3:0", "note": "F#2", "velocity": 0.7,  "variation": "v1" },
+        { "time": "1:0:0", "note": "C2",  "velocity": 0.9,  "variation": "v2" },
+        { "time": "1:0:0", "note": "F#2", "velocity": 0.7,  "variation": "v2" },
+        { "time": "1:0:2", "note": "F#2", "velocity": 0.65, "variation": "v2" },
+        { "time": "1:1:0", "note": "F#2", "velocity": 0.7,  "variation": "v2" },
+        { "time": "1:1:0", "note": "D2",  "velocity": 0.9,  "variation": "v2" },
+        { "time": "1:1:2", "note": "F#2", "velocity": 0.65, "variation": "v2" },
+        { "time": "1:2:0", "note": "F#2", "velocity": 0.7,  "variation": "v2" },
+        { "time": "1:2:2", "note": "F#2", "velocity": 0.65, "variation": "v2" },
+        { "time": "1:3:0", "note": "F#2", "velocity": 0.7,  "variation": "v2" },
+        { "time": "1:3:0", "note": "D2",  "velocity": 0.9,  "variation": "v2" },
+        { "time": "2:0:0", "note": "C2",  "velocity": 0.9,  "variation": "v3" },
+        { "time": "2:0:0", "note": "F#2", "velocity": 0.75, "variation": "v3" },
+        { "time": "2:1:0", "note": "F#2", "velocity": 0.75, "variation": "v3" },
+        { "time": "2:1:0", "note": "D2",  "velocity": 0.9,  "variation": "v3" },
+        { "time": "2:2:0", "note": "C2",  "velocity": 0.9,  "variation": "v3" },
+        { "time": "2:2:0", "note": "F#2", "velocity": 0.75, "variation": "v3" },
+        { "time": "2:3:0", "note": "F#2", "velocity": 0.75, "variation": "v3" },
+        { "time": "2:3:0", "note": "D2",  "velocity": 0.9,  "variation": "v3" },
+        { "time": "3:0:0", "note": "C2",  "velocity": 0.45, "variation": "v4" },
+        { "time": "3:0:0", "note": "F#2", "velocity": 0.35, "variation": "v4" },
+        { "time": "3:1:0", "note": "D2",  "velocity": 0.45, "variation": "v4" },
+        { "time": "3:2:0", "note": "F#2", "velocity": 0.35, "variation": "v4" },
+        { "time": "3:3:0", "note": "D2",  "velocity": 0.45, "variation": "v4" }
+      ],
+      "onomatopoeia_sync": [
+        { "time": "0:0:0", "syllable": "ドン" },
+        { "time": "0:1:0", "syllable": "_" },
+        { "time": "0:2:0", "syllable": "ドン" },
+        { "time": "0:3:0", "syllable": "タン" },
+        { "time": "1:0:0", "syllable": "ドン" },
+        { "time": "1:1:0", "syllable": "タン" },
+        { "time": "1:2:0", "syllable": "_" },
+        { "time": "1:3:0", "syllable": "タン" },
+        { "time": "2:0:0", "syllable": "ドン・チ" },
+        { "time": "2:1:0", "syllable": "_・チ" },
+        { "time": "2:2:0", "syllable": "ドン・チ" },
+        { "time": "2:3:0", "syllable": "タン・チ" },
+        { "time": "3:0:0", "syllable": "ドーン" },
+        { "time": "3:2:0", "syllable": "ターン" }
+      ]
+    }
+  ]
+}
+</script>
+
+<style>
+  /* steady-core.html 専用の追加スタイル（Phase 1 で増殖予定） */
+  .core-hero {
+    text-align: center;
+    padding: 24px 16px 8px;
+  }
+  .core-hero h2 { margin: 0 0 6px; font-size: 1.3rem; font-weight: 700; }
+  .core-hero p { margin: 0; color: var(--muted); font-size: 0.92rem; }
+
+  .placeholder-card {
+    border: 1px dashed var(--border);
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+  .placeholder-card strong { color: var(--text); }
+
+  .legacy-bridge {
+    margin: 16px 0;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1.5px solid var(--accent);
+    border-radius: 12px;
+  }
+  .legacy-bridge .row { margin-top: 10px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div>
+      <h1>STEADY <span class="sub">v3.2.0r2 — core (HOME / METRO / 道場)</span></h1>
+    </div>
+    <button class="theme-btn" id="themeBtn" type="button">light/dark</button>
+  </div>
+  <nav class="tabs" role="tablist" aria-label="主要機能">
+    <button class="tab-btn active" data-tab="home" role="tab">HOME</button>
+    <button class="tab-btn" data-tab="metro" role="tab">METRO</button>
+    <button class="tab-btn" data-tab="dojo" role="tab">道場</button>
+  </nav>
+</header>
+
+<main>
+  <!-- =====================================================
+       HOME タブ（B1-B3 / B11 / B13 で本実装・骨格のみ）
+       ===================================================== -->
+  <section id="tab-home" class="tab-panel active" role="tabpanel">
+    <div class="core-hero">
+      <h2>STEADY core</h2>
+      <p>HOME / METRO / 道場の入口（v3.2.0r2 骨格）</p>
+    </div>
+
+    <!-- B8 Run 7（UX-11）：14 日連続未使用 警告バナー（SteadyUseLog.lastSessionDate 14日チェック） -->
+    <div class="stale-warn-banner" id="staleWarnBanner" role="alert" aria-live="polite"></div>
+
+    <!-- A2HS オンボーディング枠（B1 本実装） -->
+    <div class="card-primary" id="a2hsCard" style="display:none;">
+      <div class="card-title">データを安全に保つ</div>
+      <div class="muted-text small" id="a2hsCardLead">
+        ブラウザ表示のままだと、7 日間アクセスがないとデータが消える場合があります。
+        ホーム画面に追加すると、データが残りやすくなります。
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <button class="btn-primary" id="a2hsHelpBtn" type="button">追加方法を見る</button>
+        <button class="btn-secondary" id="a2hsDoneBtn" type="button">追加した</button>
+        <button class="btn-secondary" id="a2hsExportBtn" type="button">先にバックアップ</button>
+      </div>
+      <div class="a2hs-status" id="a2hsStatus" role="status" aria-live="polite"></div>
+      <div class="eu-warn" id="euWarn">
+        EU 域内では一部 OS 更新で「ホーム画面追加」によるデータ保持が無効化された経緯があります。
+        万一に備えて、定期的な JSON バックアップをおすすめします。
+      </div>
+      <div class="fallback-note" id="fallbackNote">
+        ホーム画面追加なしでもアプリは使えますが、7 日連続でアクセスがない場合に
+        データが消える可能性があります。週に 1 回はアクセスするか、
+        「JSON バックアップ」で書き出しを取ってください。
+      </div>
+    </div>
+
+    <!-- 既存 steady.html v3.0.1 PASS への橋渡し（v3.2 段階移植期間中の互換ルート） -->
+    <div class="legacy-bridge">
+      <div class="card-title">v3.0.1 PASS（参照実装）</div>
+      <div class="muted-text small">
+        Phase 1 各ブロック（B1-B14）で機能を順次移植中。現時点では既存 steady.html の動作実装が
+        最新です。データは新キー（_v3_2 サフィックス）と既存キーが共存・migration 済。
+      </div>
+      <div class="row">
+        <a class="btn-secondary" href="./steady.html">v3.0.1 PASS を開く</a>
+        <button class="btn-secondary" id="exportBackupBtn" type="button">JSON バックアップ</button>
+      </div>
+    </div>
+
+    <!-- HOME 機能プレースホルダ（B1-B14 で順次本実装） -->
+    <div class="placeholder-card">
+      <div class="card-title">今日の挑戦</div>
+      <div>B1（A2HS+persist+JSON export 実装済）／ B2（Q-SKILL v2 診断 実装済）／ B3（emo lab セグメント＋8 patterns 進捗 実装済）／ B4-B6 で 4 patterns 実装済／ B7 で残り 2 / 計 8 完成／ B9（お手本ループ）／ B10（録音→翌日聴く）／ B11（2軸事後解析）／ B13（停滞検知）で本実装</div>
+    </div>
+
+    <div class="placeholder-card">
+      <div class="card-title">戦績（連戦・撃破証・道場主Lv）</div>
+      <div>v3.0.1 既存実装あり（steady.html）／ B0 では骨格保持のみ・LS データは migration 済で互換</div>
+    </div>
+
+    <!-- 設定（テーマ・ストレージ実測・バックアップ） -->
+    <div class="card-secondary">
+      <div class="card-title">設定 / バックアップ</div>
+
+      <!-- B8 Run 7（UX-11）：データ消去リスク注意書き（factual） -->
+      <div class="data-loss-notice" role="note">
+        <div class="data-loss-title">⚠️ データ保護について</div>
+        iPhone Safari の仕様で、7 日間アプリを使わないとデータが消える可能性があります。
+        大事な記録は週 1 回「JSON バックアップ書き出し」をしてください。ホーム画面に追加すると消えにくくなります。
+      </div>
+
+      <div class="backup-summary" id="backupSummary">
+        <div><dt>保存中の項目</dt><dd id="sumCount">—</dd></div>
+        <div><dt>容量（概算）</dt><dd id="sumBytes">—</dd></div>
+        <div><dt>最終バックアップ</dt><dd id="sumLastExport">—</dd></div>
+        <div><dt>ホーム画面起動</dt><dd id="sumStandalone">—</dd></div>
+      </div>
+
+      <div class="row" style="margin-top:8px;">
+        <button class="btn-primary" id="exportSettingBtn" type="button">JSON バックアップ書き出し</button>
+        <button class="btn-secondary" id="estStorageBtn" type="button">ストレージ実測</button>
+        <button class="btn-secondary" id="checkPersistBtn" type="button">保存状態</button>
+      </div>
+      <div class="muted-text small" id="storageEstResult" style="margin-top:6px;"></div>
+    </div>
+  </section>
+
+  <!-- =====================================================
+       METRO タブ（B10 で録音 UI 追加・骨格のみ）
+       ===================================================== -->
+  <section id="tab-metro" class="tab-panel" role="tabpanel">
+    <div class="core-hero">
+      <h2>METRO</h2>
+      <p>メトロノーム・録音→翌日聴くループ</p>
+    </div>
+
+    <!-- B8 Run 7（UX-06）：Soundbrenner Parity — TAP tempo + 4 beat-dot -->
+    <div class="card-secondary">
+      <div class="card-title">テンポ入力（TAP）</div>
+      <div class="muted-text small" style="margin-bottom:10px;">
+        「TAP」を 4 回叩くと平均 BPM を算出します。視覚拍ドットは現在の拍位置を表示します。
+      </div>
+      <div class="tap-tempo-row">
+        <label for="metroBpmInput" class="muted-text small">BPM</label>
+        <input type="number" id="metroBpmInput" data-role="bpm" min="40" max="240" step="1" value="90"
+               style="width:80px; padding:6px 8px; border:1px solid var(--border); border-radius:6px; background:var(--bg); color:var(--text);" />
+        <button type="button" class="tap-tempo-btn" id="tapTempoBtn" aria-label="タップしてテンポを入力">TAP</button>
+        <span class="tap-tempo-readout" id="tapTempoReadout" aria-live="polite">—</span>
+        <span class="beat-dots" id="metroBeatDots" aria-hidden="true"></span>
+      </div>
+    </div>
+
+    <div class="placeholder-card">
+      <div class="card-title">メトロノーム</div>
+      <div>v3.0.1 既存実装あり（steady.html METRO タブ）／B10 で iPhone 16 Voice Memo Import 接続</div>
+    </div>
+    <div class="placeholder-card">
+      <div class="card-title">録音→翌日聴くループ</div>
+      <div>B10（Voice Memo Import + getUserMedia + IndexedDB Blob 保存）で本実装</div>
+    </div>
+  </section>
+
+  <!-- =====================================================
+       道場タブ（B3-B9 で 8 patterns / emo lab 本実装）
+       ===================================================== -->
+  <section id="tab-dojo" class="tab-panel" role="tabpanel">
+    <div class="core-hero">
+      <h2>道場</h2>
+      <p>emo lab（8 patterns）・基礎練・訓練</p>
+    </div>
+
+    <!-- セグメントタブ（emo lab を含む・B3 で 8 patterns 進捗バー本実装） -->
+    <nav class="seg-tabs" role="tablist" aria-label="道場セグメント">
+      <button class="seg-btn active" data-seg="emolab" type="button">emo lab</button>
+      <button class="seg-btn" data-seg="hunt" type="button">妖怪退治</button>
+      <button class="seg-btn" data-seg="quest" type="button">冒険ルート</button>
+      <button class="seg-btn" data-seg="basic" type="button">基礎練</button>
+      <button class="seg-btn" data-seg="train" type="button">訓練</button>
+    </nav>
+
+    <section id="seg-emolab" class="seg-panel active">
+      <!-- Wave 2 Midwest emo bedroom recording 系譜接続コピー（AL012 NEW-1・1 行控えめ） -->
+      <p class="emolab-lineage muted-text small">
+        Wave 2 Midwest emo の bedroom recording 系の感触を借りながら、自分のグルーヴを試す場所。
+      </p>
+
+      <!-- Q-SKILL v2 ローンチ枠（B2 本実装・B3 で診断推奨文を表示） -->
+      <div class="qskill-launcher" id="qskillLauncher">
+        <div class="card-title">Q-SKILL v2 — 5 軸診断</div>
+        <div class="muted-text small">
+          A・B 比較形式の 10 問で Stage 帯を確定します。伸びしろ軸の Stage を全体 Stage に採用。
+        </div>
+        <dl class="qskill-launcher-meta" id="qskillMeta">
+          <dt>診断状態</dt><dd id="qskillStateLabel">未診断</dd>
+          <dt>判定 Stage</dt><dd id="qskillStageLabel">—</dd>
+          <dt>伸びしろ軸</dt><dd id="qskillWeakLabel">—</dd>
+          <dt>判定日時</dt><dd id="qskillDecidedLabel">—</dd>
+        </dl>
+        <div class="qskill-launcher-actions">
+          <button class="btn-primary" id="qskillStartBtn" type="button">診断を始める</button>
+          <button class="btn-secondary" id="qskillResetBtn" type="button">結果をクリア</button>
+        </div>
+        <!-- B3 連動：診断推奨文（未診断時は「診断する」誘導・診断済は recommendation テキスト） -->
+        <div class="qskill-recommend-box" id="qskillRecommendBox" role="status" aria-live="polite"></div>
+      </div>
+
+      <!-- Phase 1 進捗サマリ（達成済 N / 8 patterns） -->
+      <div class="card-primary">
+        <div class="card-title">emo lab（Phase 1 — 8 patterns）</div>
+        <div class="muted-text small">
+          各 pattern を Stage 0（未挑戦）→ 1（挑戦中）→ 2（達成）→ 3（極めた）で進めます。
+        </div>
+        <div class="muted-text small phase1-stage-howto">
+          Stage 更新方法：<strong>自動</strong>（30 秒以上の連続再生で +1 / max 100）、<strong>手動</strong>（下のボタンで自己評価）。
+        </div>
+        <div class="phase1-kbd-help-row">
+          <button type="button" id="emoKbdHelpBtn" class="btn-secondary phase1-kbd-help-btn" aria-label="キーボードショートカット">⌨ ショートカット（？）</button>
+        </div>
+        <div class="phase1-progress-summary" id="phase1ProgressSummary">
+          <div class="phase1-progress-meta">
+            <span id="phase1ProgressMetaText">達成済 0 / 8 patterns（Stage 2 以上）</span>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" id="phase1ProgressFill" style="width:0%;"></div></div>
+        </div>
+        <!-- 8 patterns 折りたたみカードリスト（B3 で骨格・B4-B7 で各内容実装） -->
+        <div id="phase1ProgressList" class="phase1-pattern-list" style="margin-top:10px;"></div>
+      </div>
+    </section>
+
+    <section id="seg-hunt" class="seg-panel">
+      <div class="placeholder-card">妖怪退治（v3.0.1 既存実装あり・steady.html 道場タブ）</div>
+    </section>
+    <section id="seg-quest" class="seg-panel">
+      <div class="placeholder-card">冒険ルート（v3.0.1 既存実装あり）</div>
+    </section>
+    <section id="seg-basic" class="seg-panel">
+      <div class="placeholder-card">基礎練（v3.0.1 既存実装あり・命名は内部仕様 C1 準拠）</div>
+    </section>
+    <section id="seg-train" class="seg-panel">
+      <div class="placeholder-card">訓練（v3.0.1 既存実装あり）</div>
+    </section>
+  </section>
+</main>
+
+<!-- 3 HTML 間ナビゲーション（フローティング・PWA 内遷移） -->
+<nav class="float-nav" aria-label="STEADY 主要画面">
+  <a href="./steady-core.html" data-html="core">core</a>
+  <a href="./steady-game.html" data-html="game">game</a>
+  <a href="./steady-ear.html" data-html="ear">ear</a>
+</nav>
+
+<!-- =====================================================
+     A2HS 案内モーダル（B1 本実装・iOS 用 SVG 補助付き）
+     ===================================================== -->
+<div class="modal-backdrop" id="a2hsModal" role="dialog" aria-modal="true" aria-labelledby="a2hsTitle">
+  <div class="modal-box">
+    <h2 id="a2hsTitle" style="margin:0 0 10px; font-size:1.1rem;">ホーム画面に追加</h2>
+    <p class="muted-text small" id="a2hsModalLead" style="margin:0 0 10px;">
+      iPhone / iPad の Safari でブラウザに表示している場合の手順です。
+    </p>
+
+    <div class="onboard-step">
+      <div class="onboard-step-num">1</div>
+      <div class="a2hs-svg-icon" aria-hidden="true">
+        <!-- 共有アイコン（□に↑） -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 4v12"/>
+          <path d="M8 8l4-4 4 4"/>
+          <path d="M5 12v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7"/>
+        </svg>
+      </div>
+      <div>下部の「共有」ボタン（□から↑が出ているアイコン）をタップ</div>
+    </div>
+
+    <div class="onboard-step">
+      <div class="onboard-step-num">2</div>
+      <div class="a2hs-svg-icon" aria-hidden="true">
+        <!-- ホーム画面に追加アイコン（□に＋） -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="4" y="4" width="16" height="16" rx="3"/>
+          <path d="M12 8v8"/>
+          <path d="M8 12h8"/>
+        </svg>
+      </div>
+      <div>「ホーム画面に追加」を選択</div>
+    </div>
+
+    <div class="onboard-step">
+      <div class="onboard-step-num">3</div>
+      <div class="a2hs-svg-icon" aria-hidden="true">
+        <!-- チェックアイコン -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 12l5 5L20 7"/>
+        </svg>
+      </div>
+      <div>右上の「追加」をタップ → ホーム画面のアイコンから開く</div>
+    </div>
+
+    <div class="muted-text small" id="a2hsModalNote" style="margin-top:12px;">
+      Android / Chrome の場合は、ブラウザのメニューから「ホーム画面に追加」または
+      「アプリをインストール」を選んでください。
+    </div>
+
+    <div class="row" style="margin-top:14px; justify-content:flex-end;">
+      <button class="btn-secondary" id="a2hsCloseBtn" type="button">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- =====================================================
+     Q-SKILL v2 診断モーダル（B2 本実装）
+     ===================================================== -->
+<div class="modal-backdrop" id="qskillModal" role="dialog" aria-modal="true" aria-labelledby="qskillModalTitle">
+  <div class="modal-box qskill-box">
+    <div id="qskillBody" aria-labelledby="qskillModalTitle"></div>
+    <div class="row" id="qskillControls" style="margin-top:14px; justify-content:flex-end;"></div>
+  </div>
+</div>
+
+<!-- 7日消去 fallback ポップアップ（B1 本実装） -->
+<div class="export-warn" id="exportWarn" role="alertdialog" aria-labelledby="exportWarnTitle">
+  <div class="warn-row">
+    <div class="warn-icon" aria-hidden="true">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 9v4"/>
+        <path d="M12 17h.01"/>
+        <path d="M10.3 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.41 0z"/>
+      </svg>
+    </div>
+    <div class="warn-body">
+      <div class="warn-title" id="exportWarnTitle">バックアップ推奨</div>
+      <div class="muted-text small" id="exportWarnMsg">最後のアクセス／バックアップから 6.5 日以上経過しています。</div>
+      <div class="warn-meta" id="exportWarnMeta"></div>
+    </div>
+  </div>
+  <div class="row" style="margin-top:10px;">
+    <button class="btn-primary" id="exportNowBtn" type="button">JSON で書き出す</button>
+    <button class="btn-secondary" id="exportLaterBtn" type="button">あとで（24h後に再表示）</button>
+  </div>
+</div>
+
+<script>
+/* steady-core.html 個別の起動スクリプト（B0 骨格） */
+(function () {
+  'use strict';
+  var S = window.SteadyShared;
+
+  // テーマ切替
+  document.getElementById('themeBtn').addEventListener('click', function () { S.toggleTheme(); });
+
+  // タブ切替（既存 steady.html と同等の挙動）
+  document.querySelectorAll('.tab-btn').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var name = b.dataset.tab;
+      document.querySelectorAll('.tab-btn').forEach(function (x) { x.classList.toggle('active', x.dataset.tab === name); });
+      document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.toggle('active', p.id === 'tab-' + name); });
+    });
+  });
+
+  // セグメント切替（道場内）
+  function activateSegment(name) {
+    if (!name) return;
+    document.querySelectorAll('.seg-btn').forEach(function (x) { x.classList.toggle('active', x.dataset.seg === name); });
+    document.querySelectorAll('.seg-panel').forEach(function (p) { p.classList.toggle('active', p.id === 'seg-' + name); });
+  }
+  document.querySelectorAll('.seg-btn').forEach(function (b) {
+    b.addEventListener('click', function () { activateSegment(b.dataset.seg); });
+  });
+
+  // ---------------------------------------------------------
+  // B8 Run 7（UX-06）：TAP tempo + 4 beat-dot 視覚拍
+  // ---------------------------------------------------------
+  (function setupTapTempo() {
+    var tapBtn = document.getElementById('tapTempoBtn');
+    var bpmInput = document.getElementById('metroBpmInput');
+    var readout = document.getElementById('tapTempoReadout');
+    var dotsEl = document.getElementById('metroBeatDots');
+    if (dotsEl) {
+      try { S.createBeatDots(dotsEl, 4); } catch (_) {}
+    }
+    if (tapBtn) {
+      tapBtn.addEventListener('click', function () {
+        var bpm = S.tapTempo();
+        tapBtn.classList.add('tapping');
+        setTimeout(function () { tapBtn.classList.remove('tapping'); }, 120);
+        if (bpm) {
+          if (bpmInput) bpmInput.value = String(bpm);
+          if (readout) readout.textContent = bpm + ' BPM';
+        } else {
+          if (readout) readout.textContent = 'もう数回タップしてください';
+        }
+      });
+    }
+    // beat-dot active loop（純粋表示・Tone.Transport 連動は B10 で）
+    if (dotsEl) {
+      var beat = 0;
+      setInterval(function () {
+        try {
+          var bv = parseFloat((bpmInput && bpmInput.value) || '90');
+          if (!isFinite(bv) || bv <= 0) return;
+          // ここでは visual beat を bpmInput の BPM で 1 拍ずつ進める
+          // 実 Transport との sync は B10 で取り扱い（ここは UI 検証用）
+        } catch (_) {}
+        beat = (beat + 1) % 4;
+        try { S.setActiveBeatDot(dotsEl, beat); } catch (_) {}
+      }, 60000 / 90);
+    }
+  })();
+
+  // ---------------------------------------------------------
+  // B8 Run 7（UX-09）：⌨ ショートカットボタン → help モーダル
+  // ---------------------------------------------------------
+  (function setupShortcutHelpBtn() {
+    var btn = document.getElementById('emoKbdHelpBtn');
+    if (btn) {
+      btn.addEventListener('click', function () {
+        try { S.openShortcutHelp(); } catch (_) {}
+      });
+    }
+  })();
+
+  // AL012 N3 対応：manifest shortcut url=#emolab 等の hash 監視 → 道場タブ＋該当セグメント自動切替
+  function applyHashIfRecognized() {
+    var h = (location.hash || '').replace(/^#/, '');
+    if (!h) return;
+    var SEG_MAP = { emolab: 'dojo', hunt: 'dojo', quest: 'dojo', basic: 'dojo', train: 'dojo' };
+    var parentTab = SEG_MAP[h];
+    if (parentTab) {
+      // 親タブを切替
+      document.querySelectorAll('.tab-btn').forEach(function (x) { x.classList.toggle('active', x.dataset.tab === parentTab); });
+      document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.toggle('active', p.id === 'tab-' + parentTab); });
+      activateSegment(h);
+    }
+  }
+  window.addEventListener('hashchange', applyHashIfRecognized);
+
+  // ---------------------------------------------------------
+  // A2HS カード表示制御（standalone なら非表示・onboard 完了で非表示）
+  // ---------------------------------------------------------
+  function refreshA2HSCard() {
+    var card = document.getElementById('a2hsCard');
+    if (!card) return;
+    if (S.isStandalone()) {
+      card.style.display = 'none';
+      return;
+    }
+    var done = S.lsGet(S.LS_V32.PWA_ONBOARD, false);
+    card.style.display = done ? 'none' : 'block';
+    // EU リスク警告（A2HS exemption 失効経緯）
+    var eu = document.getElementById('euWarn');
+    if (eu) eu.classList.toggle('active', S.isLikelyEU());
+    // iOS Safari 以外なら案内文言を一般化
+    var lead = document.getElementById('a2hsModalLead');
+    if (lead && !S.isIOSSafari()) {
+      lead.textContent = 'お使いのブラウザに「ホーム画面に追加」または「アプリをインストール」のメニューがあれば、それを使ってください。';
+    }
+  }
+  refreshA2HSCard();
+
+  // ---------------------------------------------------------
+  // A2HS 案内モーダル開閉
+  // ---------------------------------------------------------
+  document.getElementById('a2hsHelpBtn').addEventListener('click', function () {
+    document.getElementById('a2hsModal').classList.add('active');
+  });
+  document.getElementById('a2hsCloseBtn').addEventListener('click', function () {
+    document.getElementById('a2hsModal').classList.remove('active');
+  });
+  // モーダル背景クリックで閉じる
+  document.getElementById('a2hsModal').addEventListener('click', function (ev) {
+    if (ev.target === this) this.classList.remove('active');
+  });
+
+  // ---------------------------------------------------------
+  // 「追加した」→ A2HS 完了マーク + persist() 試行 + factual ステータス表示
+  // （AL012 NEW-4 対処：「ありがとう」廃止 → factual トーンへ）
+  // ---------------------------------------------------------
+  document.getElementById('a2hsDoneBtn').addEventListener('click', function () {
+    S.lsSet(S.LS_V32.PWA_ONBOARD, true);
+    var st = document.getElementById('a2hsStatus');
+    if (st) {
+      st.textContent = S.getA2HSDoneStatus();
+      st.classList.add('active');
+      st.classList.toggle('muted', !S.isStandalone());
+    }
+    // standalone なら即時 persist() を試みる
+    if (S.isStandalone()) {
+      S.requestPersistIfNeeded().then(function (r) {
+        if (st) {
+          var msg = S.getA2HSDoneStatus();
+          if (r && r.persisted === true) {
+            msg += ' データの保存をブラウザに依頼しました（許可）。';
+          } else if (r && r.persisted === false) {
+            msg += ' データの保存依頼は許可されませんでしたが、定期バックアップで補えます。';
+          }
+          st.textContent = msg;
+        }
+      });
+    }
+    refreshA2HSCard();
+    refreshSummary();
+  });
+
+  // 「先にバックアップ」（A2HS カード内ショートカット）
+  document.getElementById('a2hsExportBtn').addEventListener('click', function () {
+    var ok = S.downloadJSONExport();
+    showToast(ok ? 'JSON バックアップを書き出しました。' : '書き出しに失敗しました。');
+    refreshSummary();
+  });
+
+  // ---------------------------------------------------------
+  // JSON バックアップ（設定画面）
+  // ---------------------------------------------------------
+  document.getElementById('exportSettingBtn').addEventListener('click', function () {
+    var ok = S.downloadJSONExport();
+    showToast(ok ? 'JSON バックアップを書き出しました。' : '書き出しに失敗しました。');
+    refreshSummary();
+  });
+
+  // ---------------------------------------------------------
+  // 7日 fallback ポップアップ（明示）
+  // ---------------------------------------------------------
+  document.getElementById('exportNowBtn').addEventListener('click', function () {
+    S.downloadJSONExport();
+    document.getElementById('exportWarn').classList.remove('active');
+    refreshSummary();
+  });
+  document.getElementById('exportLaterBtn').addEventListener('click', function () {
+    S.lsSet(S.LS_V32.EXPORT_LATER_AT, Date.now());
+    document.getElementById('exportWarn').classList.remove('active');
+  });
+
+  // ---------------------------------------------------------
+  // ストレージ実測
+  // ---------------------------------------------------------
+  document.getElementById('estStorageBtn').addEventListener('click', function () {
+    S.getStorageEstimate().then(function (e) {
+      var el = document.getElementById('storageEstResult');
+      if (!e) { el.textContent = 'ストレージ API は未対応です。'; return; }
+      var mb = function (n) { return (n / 1024 / 1024).toFixed(2); };
+      el.textContent = '使用量 ' + mb(e.usage) + ' MB / クォータ ' + mb(e.quota) + ' MB';
+    });
+  });
+
+  // ---------------------------------------------------------
+  // 保存状態（persist + standalone まとめて表示）
+  // ---------------------------------------------------------
+  document.getElementById('checkPersistBtn').addEventListener('click', function () {
+    var el = document.getElementById('storageEstResult');
+    var cached = S.lsGet(S.LS_V32.PERSIST_GRANTED, null);
+    var standalone = S.isStandalone();
+    var persistText = cached === true ? '保存依頼=許可' : cached === false ? '保存依頼=未許可' : '保存依頼=未送信';
+    var standaloneText = standalone ? 'ホーム画面起動=有効' : 'ブラウザタブ起動';
+    el.textContent = persistText + ' / ' + standaloneText;
+  });
+
+  // ---------------------------------------------------------
+  // バックアップサマリ更新（共通 attachBackupUI 経由・B2 リファクタ）
+  // ---------------------------------------------------------
+  var refreshSummary = S.attachBackupUI({ detailedCount: true });
+
+  // ---------------------------------------------------------
+  // 簡易トースト（独立 UI 不要・alert でも代用可だが iOS の alert は煩わしい）
+  // ---------------------------------------------------------
+  function showToast(msg) {
+    try {
+      var t = document.createElement('div');
+      t.textContent = msg;
+      t.setAttribute('role', 'status');
+      t.style.cssText = [
+        'position:fixed', 'left:50%', 'bottom:88px', 'transform:translateX(-50%)',
+        'background:var(--surface)', 'color:var(--text)',
+        'border:1px solid var(--accent)', 'border-radius:8px',
+        'padding:10px 16px', 'z-index:120', 'font-size:0.88rem',
+        'box-shadow:0 4px 12px rgba(0,0,0,0.18)'
+      ].join(';');
+      document.body.appendChild(t);
+      setTimeout(function () { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; }, 2200);
+      setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 2600);
+    } catch (_) {}
+  }
+
+  // ---------------------------------------------------------
+  // 7日 fallback ポップアップ判定（起動 1.5 秒後に評価）
+  // ---------------------------------------------------------
+  setTimeout(function () {
+    try {
+      var r = S.shouldShowExportWarn();
+      if (!r.show) return;
+      var warn = document.getElementById('exportWarn');
+      var meta = document.getElementById('exportWarnMeta');
+      var msg = document.getElementById('exportWarnMsg');
+      if (r.reason === 'never-exported') {
+        if (msg) msg.textContent = 'まだ一度もバックアップを取っていません。書き出しておくと安心です。';
+      } else {
+        if (msg) msg.textContent = '最後のバックアップから ' + r.daysSince + ' 日経過しました。';
+      }
+      if (meta) {
+        var standalone = S.isStandalone();
+        var persisted = S.lsGet(S.LS_V32.PERSIST_GRANTED, null);
+        meta.textContent = 'ホーム画面起動: ' + (standalone ? 'はい' : 'いいえ') +
+          ' / 保存依頼: ' + (persisted === true ? '許可' : persisted === false ? '未許可' : '未送信');
+      }
+      warn.classList.add('active');
+    } catch (_) {}
+  }, 1500);
+
+  // ---------------------------------------------------------
+  // 起動直後：standalone 検出 → persist() を内部で試みる（UI なし）
+  // ---------------------------------------------------------
+  setTimeout(function () {
+    if (S.isStandalone()) {
+      S.requestPersistIfNeeded().then(function () { refreshSummary(); });
+    }
+  }, 800);
+
+  // ---------------------------------------------------------
+  // Q-SKILL v2 ローンチャ（B2 本実装）
+  // ---------------------------------------------------------
+  function refreshQskillLauncher() {
+    try {
+      var r = S.getQSkillResult();
+      var stateLbl = document.getElementById('qskillStateLabel');
+      var stageLbl = document.getElementById('qskillStageLabel');
+      var weakLbl = document.getElementById('qskillWeakLabel');
+      var dateLbl = document.getElementById('qskillDecidedLabel');
+      var startBtn = document.getElementById('qskillStartBtn');
+      if (!stateLbl) return;
+      if (r && typeof r.stage === 'number') {
+        stateLbl.textContent = '判定済';
+        stageLbl.textContent = 'Stage ' + r.stage;
+        weakLbl.textContent = r.weakest || '—';
+        if (typeof r.decidedAt === 'number') {
+          dateLbl.textContent = new Date(r.decidedAt).toLocaleString('ja-JP');
+        }
+        if (startBtn) startBtn.textContent = '再診断する';
+      } else {
+        stateLbl.textContent = '未診断';
+        stageLbl.textContent = '—';
+        weakLbl.textContent = '—';
+        dateLbl.textContent = '—';
+        if (startBtn) startBtn.textContent = '診断を始める';
+      }
+      // B3：診断連動の推奨文を emo lab 上部に表示
+      refreshRecommendBox(r);
+    } catch (_) {}
+  }
+  refreshQskillLauncher();
+
+  var qStartBtn = document.getElementById('qskillStartBtn');
+  if (qStartBtn) {
+    qStartBtn.addEventListener('click', function () {
+      S.startQSkillModal({
+        onComplete: function (result) {
+          refreshQskillLauncher();
+          showToast('診断完了：Stage ' + result.stage);
+        }
+      });
+    });
+  }
+  var qResetBtn = document.getElementById('qskillResetBtn');
+  if (qResetBtn) {
+    qResetBtn.addEventListener('click', function () {
+      S.lsSet(S.LS_V32.QSKILL_RESULT_V32, null);
+      S.clearQSkillProgress();
+      refreshQskillLauncher();
+      showToast('診断結果をクリアしました。');
+    });
+  }
+  // モーダル背景クリックで閉じる
+  var qModal = document.getElementById('qskillModal');
+  if (qModal) {
+    qModal.addEventListener('click', function (ev) {
+      if (ev.target === this) this.classList.remove('active');
+    });
+  }
+
+  // ---------------------------------------------------------
+  // B3/B4：emo lab — Phase 1 進捗バー＋8 patterns 折りたたみカード
+  // ---------------------------------------------------------
+  // 8 patterns 定義（順序固定・LS キー名と一致・B4-B7 で内容差し替え）
+  // mountId: B4-B7 で固有 UI をマウントする pattern。null は手動 Stage UI のみ。
+  var PHASE1_PATTERNS = [
+    { id: 'sixstroke',     label: 'Six Stroke Roll',  hint: 'R-L-L-R-R-L の 6 ストロークで揺れを作る練習（B4 実装済）',  mountId: 'p1_six_stroke' },
+    { id: 'sizzle_hat',    label: 'Sizzle Hat 4 段階', hint: 'ハット開閉 4 段階の使い分け（B4 実装済）',                  mountId: 'p2_sizzle_hat_4steps' },
+    { id: 'halftime',      label: 'Half-time Shuffle', hint: 'シャッフルで揺らす Half-time（B5 実装済）',                mountId: 'p3_halftime_shuffle' },
+    { id: 'fourbar_fills', label: '4-bar fills',      hint: '3 小節グルーヴ + 4 小節目フィル 10 種ローテ（B5 実装済）',  mountId: 'p4_4bar_fills' },
+    { id: 'octopus',       label: 'Octopus',          hint: '両手両足同時系・8 分音符オール埋めの密度感（B6 実装済）',     mountId: 'p5_octopus' },
+    { id: 'crash4',        label: 'Crash 4 分',       hint: '4 分位置に Crash を置き続ける押し出し（B6 実装済）',          mountId: 'p6_crash_quarter' },
+    { id: 'ride_bell',     label: 'Ride bell 4 分',   hint: 'ライドベル 4 分のアクセント感（B7 実装済）',                 mountId: 'p7_ride_bell' },
+    { id: 'subtractive',   label: 'Subtractive play', hint: '抜きで作るグルーヴ・4種ローテ（B7 実装済）',                  mountId: 'p8_subtractive' }
+  ];
+
+  // Stage アイコン文字列（絵文字制限ガイドライン準拠：シンプルな数字 + 状態語）
+  var STAGE_LABELS = ['未挑戦', '挑戦中', '達成', '極めた'];
+
+  function getPhase1Progress() {
+    var def = {};
+    PHASE1_PATTERNS.forEach(function (p) { def[p.id] = 0; });
+    var v = S.lsGet(S.LS_V32.PHASE1_PROGRESS, null);
+    if (!v || typeof v !== 'object') {
+      // migration 漏れ防止：未存在時はここで補填投入（冪等）
+      S.lsSet(S.LS_V32.PHASE1_PROGRESS, def);
+      return def;
+    }
+    // 欠損 pattern key は 0 で埋める（前方互換）
+    PHASE1_PATTERNS.forEach(function (p) {
+      if (typeof v[p.id] !== 'number') v[p.id] = 0;
+    });
+    return v;
+  }
+
+  function setPhase1PatternStage(patternId, stage) {
+    var p = getPhase1Progress();
+    var s = parseInt(stage, 10);
+    if (isNaN(s) || s < 0) s = 0;
+    if (s > 3) s = 3;
+    p[patternId] = s;
+    S.lsSet(S.LS_V32.PHASE1_PROGRESS, p);
+    return p;
+  }
+
+  function summarizePhase1Progress(p) {
+    var achieved = 0;
+    PHASE1_PATTERNS.forEach(function (item) {
+      var v = p[item.id] || 0;
+      if (v >= 2) achieved += 1; // Stage 2 以上を「達成済」とカウント
+    });
+    return { achieved: achieved, total: PHASE1_PATTERNS.length };
+  }
+
+  function refreshPhase1Summary() {
+    var p = getPhase1Progress();
+    var sum = summarizePhase1Progress(p);
+    var meta = document.getElementById('phase1ProgressMetaText');
+    var fill = document.getElementById('phase1ProgressFill');
+    if (meta) meta.textContent = '達成済 ' + sum.achieved + ' / ' + sum.total + ' patterns（Stage 2 以上）';
+    if (fill) fill.style.width = (sum.total > 0 ? Math.round(sum.achieved / sum.total * 100) : 0) + '%';
+  }
+
+  // 折りたたみ開閉状態を保存（N7 状態復元方針・AL011 監査由来）
+  function snapshotOpenState(list) {
+    var snap = {};
+    if (!list) return snap;
+    list.querySelectorAll('.phase1-pattern-card').forEach(function (card) {
+      var pid = card.getAttribute('data-pattern');
+      var head = card.querySelector('.phase1-pattern-head');
+      if (head && head.getAttribute('aria-expanded') === 'true') snap[pid] = true;
+    });
+    return snap;
+  }
+  function restoreOpenState(list, snap) {
+    if (!list || !snap) return;
+    Object.keys(snap).forEach(function (pid) {
+      var card = list.querySelector('.phase1-pattern-card[data-pattern="' + pid + '"]');
+      if (!card) return;
+      var head = card.querySelector('.phase1-pattern-head');
+      var body = card.querySelector('.phase1-pattern-body');
+      if (!head || !body) return;
+      head.setAttribute('aria-expanded', 'true');
+      body.hidden = false;
+      card.classList.add('open');
+      // mount UI (B4 以降 emo lab UI が紐付くもののみ・既にマウント済なら no-op)
+      mountEmoLabIfNeeded(pid);
+    });
+  }
+
+  // Stage バッジのみ差分更新（N7 対応・全 DOM 再描画を避ける）
+  function refreshPhase1PatternStageBadge(pid) {
+    var card = document.querySelector('.phase1-pattern-card[data-pattern="' + pid + '"]');
+    if (!card) return;
+    var p = getPhase1Progress();
+    var stage = p[pid] || 0;
+    var stageEl = card.querySelector('.phase1-pattern-stage');
+    if (stageEl) {
+      stageEl.setAttribute('data-stage', String(stage));
+      stageEl.textContent = 'Stage ' + stage + '・' + (STAGE_LABELS[stage] || STAGE_LABELS[0]);
+    }
+  }
+
+  function renderPhase1PatternList() {
+    var list = document.getElementById('phase1ProgressList');
+    if (!list) return;
+    // N7 対応：再描画前に開閉状態を保存
+    var openSnap = snapshotOpenState(list);
+    var p = getPhase1Progress();
+    var html = '';
+    PHASE1_PATTERNS.forEach(function (pat, idx) {
+      var stage = p[pat.id] || 0;
+      var stageLabel = STAGE_LABELS[stage] || STAGE_LABELS[0];
+      html += '' +
+        '<div class="phase1-pattern-card" data-pattern="' + pat.id + '" data-mount="' + (pat.mountId || '') + '">' +
+          '<button class="phase1-pattern-head" type="button" aria-expanded="false" aria-controls="phase1Body-' + pat.id + '">' +
+            '<span class="phase1-pattern-num">' + (idx + 1) + '</span>' +
+            '<span class="phase1-pattern-name">' + pat.label + '</span>' +
+            '<span class="phase1-pattern-stage" data-stage="' + stage + '">Stage ' + stage + '・' + stageLabel + '</span>' +
+            '<span class="phase1-pattern-chevron" aria-hidden="true">▾</span>' +
+          '</button>' +
+          '<div class="phase1-pattern-body" id="phase1Body-' + pat.id + '" hidden>' +
+            '<p class="muted-text small">' + pat.hint + '</p>' +
+            (pat.mountId
+              ? '<div class="emo-lab-mount" data-mount="' + pat.mountId + '"></div>'
+              : '<p class="phase1-pattern-placeholder muted-text small">B5-B7 段階で実体実装予定。現時点では Stage の手動更新のみ可能です。</p>'
+            ) +
+            '<div class="phase1-stage-buttons" role="group" aria-label="Stage を選ぶ">' +
+              '<button type="button" class="btn-secondary phase1-stage-btn" data-pattern="' + pat.id + '" data-stage="0">未挑戦</button>' +
+              '<button type="button" class="btn-secondary phase1-stage-btn" data-pattern="' + pat.id + '" data-stage="1">挑戦中</button>' +
+              '<button type="button" class="btn-secondary phase1-stage-btn" data-pattern="' + pat.id + '" data-stage="2">達成</button>' +
+              '<button type="button" class="btn-secondary phase1-stage-btn" data-pattern="' + pat.id + '" data-stage="3">極めた</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+    });
+    list.innerHTML = html;
+
+    // 折りたたみトグル
+    list.querySelectorAll('.phase1-pattern-head').forEach(function (head) {
+      head.addEventListener('click', function () {
+        var card = head.closest('.phase1-pattern-card');
+        var body = card && card.querySelector('.phase1-pattern-body');
+        if (!body) return;
+        var open = head.getAttribute('aria-expanded') === 'true';
+        head.setAttribute('aria-expanded', open ? 'false' : 'true');
+        body.hidden = open;
+        card.classList.toggle('open', !open);
+        if (!open) {
+          // 開く時に emo lab UI をマウント（lazy）
+          mountEmoLabIfNeeded(card.getAttribute('data-pattern'));
+        }
+      });
+    });
+
+    // Stage 更新ボタン（N7：差分更新）
+    list.querySelectorAll('.phase1-stage-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var pid = btn.getAttribute('data-pattern');
+        var st = btn.getAttribute('data-stage');
+        setPhase1PatternStage(pid, st);
+        refreshPhase1PatternStageBadge(pid);
+        refreshPhase1Summary();
+        showToast(pid + ' を Stage ' + st + '（' + (STAGE_LABELS[parseInt(st, 10)] || '') + '）に更新');
+      });
+    });
+
+    // N7 対応：開閉状態を復元
+    restoreOpenState(list, openSnap);
+  }
+
+  // pattern.id → mountId 解決して SteadyEmoLab を初期化（lazy）
+  function mountEmoLabIfNeeded(patternId) {
+    var pat = PHASE1_PATTERNS.filter(function (x) { return x.id === patternId; })[0];
+    if (!pat || !pat.mountId) return;
+    var card = document.querySelector('.phase1-pattern-card[data-pattern="' + patternId + '"]');
+    if (!card) return;
+    var mount = card.querySelector('.emo-lab-mount');
+    if (!mount || mount.getAttribute('data-mounted') === 'true') return;
+    if (window.SteadyEmoLab && typeof window.SteadyEmoLab.mount === 'function') {
+      window.SteadyEmoLab.mount(pat.mountId, mount, {
+        patternStageId: pat.id,
+        onProgressTick: function () { refreshPhase1Summary(); }
+      });
+      mount.setAttribute('data-mounted', 'true');
+    }
+  }
+
+  function refreshRecommendBox(result) {
+    var box = document.getElementById('qskillRecommendBox');
+    if (!box) return;
+    if (result && typeof result.stage === 'number') {
+      // Q-SKILL v2 結果連動：getQSkillRecommendation の文言をそのまま表示
+      var msg = (typeof S.getQSkillRecommendation === 'function')
+        ? S.getQSkillRecommendation(result)
+        : 'Stage ' + result.stage + '。emo lab で関連 pattern から始めるのが向いています。';
+      box.innerHTML = '<span class="qskill-recommend-text">' + msg + '</span>';
+      box.classList.add('active');
+    } else {
+      // 未診断時：診断する誘導
+      box.innerHTML = '<span class="qskill-recommend-text muted-text small">未診断です。診断すると、伸びしろ軸に合わせた pattern の入口を提案します。</span>' +
+        ' <button class="btn-secondary qskill-recommend-cta" type="button" id="qskillRecommendCtaBtn">診断する</button>';
+      box.classList.add('active');
+      var cta = document.getElementById('qskillRecommendCtaBtn');
+      if (cta) {
+        cta.addEventListener('click', function () {
+          S.startQSkillModal({
+            onComplete: function (r) {
+              refreshQskillLauncher();
+              showToast('診断完了：Stage ' + r.stage);
+            }
+          });
+        });
+      }
+    }
+  }
+
+  // 初期描画
+  renderPhase1PatternList();
+  refreshPhase1Summary();
+
+  // ショートカットヘルプボタン（B5 採用：AL012 N3 対応）
+  var kbdHelpBtn = document.getElementById('emoKbdHelpBtn');
+  if (kbdHelpBtn) {
+    kbdHelpBtn.addEventListener('click', function () {
+      if (window.SteadyEmoLab && typeof window.SteadyEmoLab.toggleKbdHelp === 'function') {
+        window.SteadyEmoLab.toggleKbdHelp();
+      }
+    });
+  }
+
+  // hash 監視 — 起動時 1 回（manifest shortcut から開かれた時の対応）
+  applyHashIfRecognized();
+})();
+</script>
+
+<!-- =====================================================
+     B8 Run 2 / T-04 module split: SteadyEmoLab を 3 つの外部 JS ファイルに分割
+     - steady-emolab-shared.js : data/synth/render 共通基盤（最初にロード）
+     - steady-emolab-p1p4.js   : mountP1〜P4 + DOM helper
+     - steady-emolab-p5p8.js   : mountP5〜P8 + 公開 API + DOM ready 初期化
+     順序依存：shared → p1p4 → p5p8（順序保護フラグ付き）
+     Shift+7 / Shift+8 のグローバルキーリスナーのみ IIFE 外（このファイル内 inline）
+     ===================================================== -->
+<!-- B9: お手本ループ MIDI モジュール（emolab-* より先に load して window.SteadyMidiLoops を先行公開） -->
+<script src="./steady-midi-loops.js"></script>
+<!-- P13 SteadyUseLog 機構（試用フロー §4-1 観察データ物理化・emolab-* より先に load して window.SteadyUseLog 先行公開） -->
+<script src="./steady-use-log.js"></script>
+<script src="./steady-emolab-shared.js"></script>
+<script src="./steady-emolab-p1p4.js"></script>
+<script src="./steady-emolab-p5p8.js"></script>
+<script>
+/* B8 Run 2 / T-04: Shift+7 / Shift+8 グローバルキーリスナー（IIFE 外）
+   p7/p8 セクションが存在する時だけ動作。input focus 中・修飾キー組合せでは無効。 */
+(function () {
+  'use strict';
+  function isInputLikeFocused() {
+    var t = document.activeElement;
+    if (!t) return false;
+    var tag = t.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+    if (t.isContentEditable) return true;
+    return false;
+  }
+  document.addEventListener('keydown', function (ev) {
+    if (isInputLikeFocused()) return;
+    if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
+    if (!ev.shiftKey) return;
+    // Shift+7：p7 Ride Bell BPM 既定（120）に戻す（reset btn 経由）
+    if (ev.key === '7') {
+      var p7Reset = document.querySelector('#emo-lab-p7 .emo-reset-btn');
+      if (p7Reset) { ev.preventDefault(); p7Reset.click(); return; }
+    }
+    // Shift+8：p8 Subtractive ローテモード切替（auto-rotate ⇄ manual-stay）
+    if (ev.key === '8') {
+      var p8Cur = document.querySelector('#emo-lab-p8 .emo-rot-mode-btn.active');
+      var nextMode = (p8Cur && p8Cur.getAttribute('data-mode') === 'auto-rotate') ? 'manual-stay' : 'auto-rotate';
+      var nextBtn = document.querySelector('#emo-lab-p8 .emo-rot-mode-btn[data-mode="' + nextMode + '"]');
+      if (nextBtn) { ev.preventDefault(); nextBtn.click(); return; }
+    }
+  });
+})();
+</script>
+</body>
+</html>

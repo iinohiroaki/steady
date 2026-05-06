@@ -1,0 +1,428 @@
+{
+  "version": "v3.2.0r2",
+  "generated_by": "AL002_西村マカロン",
+  "generated_at": "2026-05-06",
+  "shuffle_bag_seed": "AL002-r2-2026-05-06",
+  "design_notes": {
+    "tone": "Wave 2 Midwest emo / bedroom recording 美学・脱力・偶発性・SDT Autonomy 尊重",
+    "audience": "独学ドラマー・役所文書感ゼロ",
+    "self_delta_only": true,
+    "banned_words": [
+      "地力ついた",
+      "習慣の一部だ",
+      "速い",
+      "突破",
+      "明日もっと行ける",
+      "Pro帯まで",
+      "Pro比",
+      "修行",
+      "特訓",
+      "8000年継承",
+      "身体図式",
+      "もっと頑張れ",
+      "すごい",
+      "天才"
+    ],
+    "allowed_culture_terms": [
+      "emo lab",
+      "8 patterns",
+      "emo notes",
+      "twinkle",
+      "emo essentials",
+      "Wave 2 Midwest emo",
+      "math-emo 系",
+      "twinkle 系",
+      "bedroom recording 系"
+    ],
+    "_culture_terms_note": "直接アーティスト名・直接ドラマー名は著作権基準書「直接アーティスト名不可」原則により禁止。スタイル汎化語のみ許可。",
+    "variable_pool": {
+      "pattern": ["Six Stroke Roll", "Sizzle Hat", "Half-time switch", "4-bar fills", "Octopus fill", "Crash 4分", "Ride bell 4分", "Subtractive play"],
+      "ms": ["12", "18", "24", "31", "42"],
+      "prev": ["20", "28", "35", "48", "55"],
+      "count": ["8", "16", "24", "32", "48"],
+      "stage": ["3", "4", "5", "6", "7"],
+      "bpm": ["88", "100", "112", "124", "136"],
+      "bpm_prev": ["80", "92", "104", "116", "128"],
+      "delta": ["+4", "+8", "+12", "+16", "+20"],
+      "days": ["3", "5", "7", "10", "14"],
+      "streak": ["3", "7", "12", "18", "24"],
+      "density": ["6", "8", "10", "12", "14"],
+      "density_prev": ["4", "6", "8", "10", "12"],
+      "months": ["2", "3", "4", "5", "6"],
+      "drummer": ["Wave 2 系の名手", "math-emo 系の先人", "bedroom recording 派"],
+      "band": ["Wave 2 Midwest emo", "math-emo 系", "twinkle 系"],
+      "section": ["emo lab", "emo notes", "twinkle", "emo essentials"],
+      "minutes": ["10", "15", "20", "25", "30"]
+    }
+  },
+  "categories": {
+    "session_start": [
+      {
+        "id": "ss_01",
+        "template": "今日は {pattern} を {count} 回。先月の揺らぎ {prev}ms から、どう変わるか見てみよう。",
+        "variables": ["pattern", "count", "prev"],
+        "tone": "neutral_curiosity"
+      },
+      {
+        "id": "ss_02",
+        "template": "{section} へようこそ。{pattern} で {minutes} 分、ゆるく回してみる？",
+        "variables": ["section", "pattern", "minutes"],
+        "tone": "invitation"
+      },
+      {
+        "id": "ss_03",
+        "template": "前回の BPM {bpm_prev}。今日は ①同じ ②微下げ ③1段上げ — どれで始める？",
+        "variables": ["bpm_prev"],
+        "tone": "autonomy_choice"
+      },
+      {
+        "id": "ss_04",
+        "template": "{band} の質感に近づきたい日は、{pattern} から入るのが楽。{count} 回どう？",
+        "variables": ["band", "pattern", "count"],
+        "tone": "lineage_soft"
+      },
+      {
+        "id": "ss_05",
+        "template": "{streak} 日続いてる。今日は {pattern} を {minutes} 分。",
+        "variables": ["streak", "pattern", "minutes"],
+        "tone": "factual"
+      },
+      {
+        "id": "ss_06",
+        "template": "Stage {stage} の練習日。{pattern} を {count} 回、肩の力抜いていこう。",
+        "variables": ["stage", "pattern", "count"],
+        "tone": "relaxed"
+      },
+      {
+        "id": "ss_07",
+        "template": "BPM {bpm} で {pattern}。先月の同 BPM では揺らぎ {prev}ms だった。",
+        "variables": ["bpm", "pattern", "prev"],
+        "tone": "factual"
+      },
+      {
+        "id": "ss_08",
+        "template": "{pattern} を異種3つランダムで挟むと、ブロック練より残りやすいらしい。試す？",
+        "variables": ["pattern"],
+        "tone": "suggestion"
+      },
+      {
+        "id": "ss_09",
+        "template": "今日の選択肢：①{pattern} を {count} 回 ②別パターンに切替 ③ {minutes} 分だけ流す。",
+        "variables": ["pattern", "count", "minutes"],
+        "tone": "autonomy_choice"
+      },
+      {
+        "id": "ss_10",
+        "template": "{section} に入る前に、録音ボタンだけ押しておく？後で見返すと違いが出る。",
+        "variables": ["section"],
+        "tone": "ritual_soft"
+      },
+      {
+        "id": "ss_11",
+        "template": "{pattern}、先月は密度 {density_prev} 音/小節だった。今日はどうなるか。",
+        "variables": ["pattern", "density_prev"],
+        "tone": "neutral_curiosity"
+      },
+      {
+        "id": "ss_12",
+        "template": "気が乗らない日は {minutes} 分でも OK。{pattern} を軽く流すだけでも記録は残る。",
+        "variables": ["minutes", "pattern"],
+        "tone": "permissive"
+      },
+      {
+        "id": "ss_13",
+        "template": "{drummer} が {pattern} で意識してたのは「抜くこと」らしい。今日の入り口にどう？",
+        "variables": ["drummer", "pattern"],
+        "tone": "lineage_soft"
+      },
+      {
+        "id": "ss_14",
+        "template": "今日は {count} 回回す予定？それとも先に {pattern} を {minutes} 分?",
+        "variables": ["count", "pattern", "minutes"],
+        "tone": "autonomy_choice"
+      },
+      {
+        "id": "ss_15",
+        "template": "Stage {stage}、{streak} 日目。{pattern} で始めるか、別のから入るか。",
+        "variables": ["stage", "streak", "pattern"],
+        "tone": "autonomy_choice"
+      }
+    ],
+    "stagnation": [
+      {
+        "id": "st_01",
+        "template": "{days} 日同じ BPM。①Challenge Point 微下げ ②48h Spacing OFF ③Random 異種3つ — どれ？",
+        "variables": ["days"],
+        "tone": "autonomy_choice"
+      },
+      {
+        "id": "st_02",
+        "template": "3条件 Plateau 検出。{pattern} で同上3択。",
+        "variables": ["pattern"],
+        "tone": "factual_choice"
+      },
+      {
+        "id": "st_03",
+        "template": "{pattern} の揺らぎが {ms}ms 前後で止まってる（先月 {prev}ms）。一回外して別パターンに行く手も。",
+        "variables": ["pattern", "ms", "prev"],
+        "tone": "suggestion"
+      },
+      {
+        "id": "st_04",
+        "template": "{days} 日横ばい。{section} のうち、まだ手をつけてないやつに切替えてみる？",
+        "variables": ["days", "section"],
+        "tone": "lateral_move"
+      },
+      {
+        "id": "st_05",
+        "template": "BPM {bpm} で {days} 日。①48時間 OFF ②BPM 5% 下げ ③異種3つ挟み。",
+        "variables": ["bpm", "days"],
+        "tone": "autonomy_choice"
+      },
+      {
+        "id": "st_06",
+        "template": "{pattern} の密度 {density} 音/小節（先月 {density_prev}）。横ばい期は録音だけ残しておく手もある。",
+        "variables": ["pattern", "density", "density_prev"],
+        "tone": "lateral_move"
+      },
+      {
+        "id": "st_07",
+        "template": "横ばい {days} 日。{band} も録音聞くと揺らぎ多めだから、ここは無理に詰めなくて良い。",
+        "variables": ["days", "band"],
+        "tone": "lineage_soft"
+      },
+      {
+        "id": "st_08",
+        "template": "Plateau 検出。①{pattern} を {minutes} 分だけ ②別パターンに完全切替 ③今日は OFF。",
+        "variables": ["pattern", "minutes"],
+        "tone": "autonomy_choice"
+      },
+      {
+        "id": "st_09",
+        "template": "{streak} 日連続で {pattern}。違うパターン挟むと戻ってきた時に揺らぎ {prev}ms 側が変わるかも。",
+        "variables": ["streak", "pattern", "prev"],
+        "tone": "suggestion"
+      },
+      {
+        "id": "st_10",
+        "template": "Stage {stage} の壁っぽい挙動 {days} 日目。Spacing 48h OFF を検討。",
+        "variables": ["stage", "days"],
+        "tone": "factual_choice"
+      },
+      {
+        "id": "st_11",
+        "template": "BPM {bpm} で揺らぎ {ms}ms 固定気味（先月 {prev}ms）。①BPM下げ ②パターン変更 ③OFF。",
+        "variables": ["bpm", "ms", "prev"],
+        "tone": "autonomy_choice"
+      },
+      {
+        "id": "st_12",
+        "template": "{pattern} で {days} 日同条件。{drummer} もスランプ期は録音溜めるだけだったらしい。",
+        "variables": ["pattern", "days", "drummer"],
+        "tone": "lineage_soft"
+      },
+      {
+        "id": "st_13",
+        "template": "横ばい検出。今日の選択肢：①{pattern} を半分の {count} 回 ②別の {pattern} ③{minutes} 分だけ。",
+        "variables": ["pattern", "count", "minutes"],
+        "tone": "autonomy_choice"
+      },
+      {
+        "id": "st_14",
+        "template": "{days} 日 BPM {bpm} 据え置き。横ばいは悪くない、ただ刺激が一個欲しいタイミングかも。",
+        "variables": ["days", "bpm"],
+        "tone": "factual"
+      },
+      {
+        "id": "st_15",
+        "template": "{section} のこのパート、{days} 日同じ。①continue ②switch ③ {minutes} 分 OFF — どれ？",
+        "variables": ["section", "days", "minutes"],
+        "tone": "autonomy_choice"
+      }
+    ],
+    "breakthrough": [
+      {
+        "id": "bt_01",
+        "template": "BPM {bpm}（先月 {bpm_prev}）。次は ①同 BPM 継続 ②微下げで安定化 ③1段挑戦 — どれにする？",
+        "variables": ["bpm", "bpm_prev"],
+        "tone": "factual_choice"
+      },
+      {
+        "id": "bt_02",
+        "template": "揺らぎ {ms}ms（先月 {prev}ms）。",
+        "variables": ["ms", "prev"],
+        "tone": "factual"
+      },
+      {
+        "id": "bt_03",
+        "template": "{pattern} 密度 {density} 音/小節（先月 {density_prev}）。次の選択肢：①同条件継続 ②別 {pattern} ③録音聞き直し。",
+        "variables": ["pattern", "density", "density_prev"],
+        "tone": "autonomy_choice"
+      },
+      {
+        "id": "bt_04",
+        "template": "Stage {stage} 到達。{months} ヶ月で。",
+        "variables": ["stage", "months"],
+        "tone": "factual"
+      },
+      {
+        "id": "bt_05",
+        "template": "BPM {bpm}（{months} ヶ月前は {bpm_prev}）。",
+        "variables": ["bpm", "months", "bpm_prev"],
+        "tone": "factual"
+      },
+      {
+        "id": "bt_06",
+        "template": "{pattern} の揺らぎ {ms}ms に到達（先月 {prev}ms）。次は別パターンか、同条件継続か。",
+        "variables": ["pattern", "ms", "prev"],
+        "tone": "factual_choice"
+      },
+      {
+        "id": "bt_07",
+        "template": "{streak} 日連続。{pattern} の密度 {density}（先月 {density_prev}）。",
+        "variables": ["streak", "pattern", "density", "density_prev"],
+        "tone": "factual"
+      },
+      {
+        "id": "bt_08",
+        "template": "Stage {stage} 圏内入り。{section} の他パートを覗く？それとも同所で固める？",
+        "variables": ["stage", "section"],
+        "tone": "autonomy_choice"
+      },
+      {
+        "id": "bt_09",
+        "template": "BPM {bpm_prev}→{bpm}（自分比 {delta}）。次の選択肢：①同 BPM ②微下げ ③1段。",
+        "variables": ["bpm_prev", "bpm", "delta"],
+        "tone": "autonomy_choice"
+      },
+      {
+        "id": "bt_10",
+        "template": "{pattern} {count} 回完走。録音残してる？後で聞くと自分比の差が一番見える。",
+        "variables": ["pattern", "count"],
+        "tone": "ritual_soft"
+      },
+      {
+        "id": "bt_11",
+        "template": "揺らぎ {ms}ms（先月 {prev}ms）。{band} のリニアプレイ系揺らぎは特徴だから、ここから先は好み。",
+        "variables": ["ms", "prev", "band"],
+        "tone": "lineage_soft"
+      },
+      {
+        "id": "bt_12",
+        "template": "Stage {stage}、{months} ヶ月で。{section} の次パートに進むか、同所継続か。",
+        "variables": ["stage", "months", "section"],
+        "tone": "autonomy_choice"
+      },
+      {
+        "id": "bt_13",
+        "template": "BPM {bpm}（先月 {bpm_prev}）、{streak} 日連続。",
+        "variables": ["bpm", "bpm_prev", "streak"],
+        "tone": "factual"
+      },
+      {
+        "id": "bt_14",
+        "template": "{pattern} の密度 {density}（{months} ヶ月前 {density_prev}）。次は ①同 ②別 ③ OFF。",
+        "variables": ["pattern", "density", "months", "density_prev"],
+        "tone": "autonomy_choice"
+      },
+      {
+        "id": "bt_15",
+        "template": "{section} ひとつクリア。{count} 回中の自分比 delta は揺らぎ {prev}→{ms}ms。",
+        "variables": ["section", "count", "prev", "ms"],
+        "tone": "factual"
+      }
+    ],
+    "diagnostic": [
+      {
+        "id": "dg_01",
+        "template": "Q-SKILL v2 結果：Stage {stage}。{section} の {pattern} から始めるのが今の地点に合いそう。",
+        "variables": ["stage", "section", "pattern"],
+        "tone": "diagnostic_factual"
+      },
+      {
+        "id": "dg_02",
+        "template": "現在地 Stage {stage}。{months} ヶ月で次 Stage 圏という推定（自分比の伸び率から）。",
+        "variables": ["stage", "months"],
+        "tone": "diagnostic_factual"
+      },
+      {
+        "id": "dg_03",
+        "template": "診断では {pattern} が手薄。{count} 回の蓄積で {ms}ms 前後まで揺らぎが収まるパターンが多い。",
+        "variables": ["pattern", "count", "ms"],
+        "tone": "diagnostic_factual"
+      },
+      {
+        "id": "dg_04",
+        "template": "Stage {stage} は {band} の bedroom recording 帯域。録音残しが効く時期。",
+        "variables": ["stage", "band"],
+        "tone": "diagnostic_lineage"
+      },
+      {
+        "id": "dg_05",
+        "template": "診断結果：{section} 適性高め。{pattern} と {pattern} を交互に回すと密度 {density} 帯に乗りやすい。",
+        "variables": ["section", "pattern", "density"],
+        "tone": "diagnostic_factual"
+      },
+      {
+        "id": "dg_06",
+        "template": "現状 BPM {bpm}、揺らぎ {ms}ms。Stage {stage} 帯の標準レンジ内。",
+        "variables": ["bpm", "ms", "stage"],
+        "tone": "diagnostic_factual"
+      },
+      {
+        "id": "dg_07",
+        "template": "Q-SKILL では {pattern} が強み・{pattern} が伸びしろ。最初の {days} 日は強み側を厚めに。",
+        "variables": ["pattern", "days"],
+        "tone": "diagnostic_choice"
+      },
+      {
+        "id": "dg_08",
+        "template": "Stage {stage} → 次 Stage への目安は揺らぎ {prev}ms → {ms}ms 圏。自分比 delta で見る。",
+        "variables": ["stage", "prev", "ms"],
+        "tone": "diagnostic_factual"
+      },
+      {
+        "id": "dg_09",
+        "template": "診断スコアから：①{pattern} ②{pattern} ③{pattern} の優先順。違和感あれば手動入替 OK。",
+        "variables": ["pattern"],
+        "tone": "autonomy_choice"
+      },
+      {
+        "id": "dg_10",
+        "template": "現在地 Stage {stage}、{streak} 日継続中。次の {months} ヶ月の指標は揺らぎ {ms}ms 帯。",
+        "variables": ["stage", "streak", "months", "ms"],
+        "tone": "diagnostic_factual"
+      },
+      {
+        "id": "dg_11",
+        "template": "{drummer} が Stage {stage} 帯でやってたのは「録音して翌日聞く」だけらしい。{minutes} 分で十分。",
+        "variables": ["drummer", "stage", "minutes"],
+        "tone": "diagnostic_lineage"
+      },
+      {
+        "id": "dg_12",
+        "template": "診断：{pattern} の密度が {density_prev} → {density} 圏まで伸びる余地あり。{months} ヶ月想定。",
+        "variables": ["pattern", "density_prev", "density", "months"],
+        "tone": "diagnostic_factual"
+      },
+      {
+        "id": "dg_13",
+        "template": "Stage {stage} 帯の練習配分：{section} を {minutes} 分、{pattern} を {count} 回が一例。",
+        "variables": ["stage", "section", "minutes", "pattern", "count"],
+        "tone": "diagnostic_choice"
+      },
+      {
+        "id": "dg_14",
+        "template": "Q-SKILL では Autonomy 高め。{pattern} 固定より、その日の気分で {section} 内を移動する方が向いてそう。",
+        "variables": ["pattern", "section"],
+        "tone": "diagnostic_factual"
+      },
+      {
+        "id": "dg_15",
+        "template": "現状の揺らぎ {ms}ms（Stage {stage} レンジ）。先月 {prev}ms からの自分比 delta で進捗を追う。",
+        "variables": ["ms", "stage", "prev"],
+        "tone": "diagnostic_factual"
+      }
+    ]
+  }
+}

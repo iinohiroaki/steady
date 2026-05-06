@@ -1,0 +1,3318 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>STEADY DOJO QUEST — タイム感主軸ドラム道場</title>
+<!-- PWA manifest（インライン JSON） -->
+<link rel="manifest" href="data:application/json;charset=utf-8,%7B%22name%22%3A%22STEADY%22%2C%22short_name%22%3A%22STEADY%22%2C%22description%22%3A%22%E3%83%89%E3%83%A9%E3%83%A0%E7%B7%B4%E7%BF%92%E3%83%84%E3%83%BC%E3%83%AB%22%2C%22start_url%22%3A%22.%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23ffffff%22%2C%22theme_color%22%3A%22%23ffffff%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fpng%3Bbase64%2CiVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk%2BA8AAQUBAScY42YAAAAASUVORK5CYII%3D%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fpng%22%2C%22purpose%22%3A%22any%22%7D%5D%7D">
+<!-- ローカル vendor（CDN落ち耐性） -->
+<script src="vendor/tone.js"></script>
+<script src="vendor/chart.js"></script>
+<!-- ワンショット SW クリーンアップ（旧 r1〜r4 の SW を強制破棄して v3.0 へ） -->
+<script>
+(function(){
+  var FLAG = 'steady_swclean_v3';
+  try {
+    if (localStorage.getItem(FLAG)) return;
+    var done = false;
+    var finalize = function(){
+      if (done) return; done = true;
+      try { localStorage.setItem(FLAG, String(Date.now())); } catch(_){}
+      location.replace(location.pathname + '?clean=' + Date.now());
+    };
+    var tasks = [];
+    if ('serviceWorker' in navigator) {
+      tasks.push(navigator.serviceWorker.getRegistrations().then(function(regs){
+        return Promise.all(regs.map(function(r){ return r.unregister().catch(function(){}); }));
+      }).catch(function(){}));
+    }
+    if (window.caches && caches.keys) {
+      tasks.push(caches.keys().then(function(keys){
+        return Promise.all(keys.map(function(k){ return caches.delete(k).catch(function(){}); }));
+      }).catch(function(){}));
+    }
+    if (tasks.length === 0) {
+      try { localStorage.setItem(FLAG, String(Date.now())); } catch(_){}
+      return;
+    }
+    Promise.all(tasks).then(finalize, finalize);
+    setTimeout(finalize, 3000);
+  } catch(_){ /* noop */ }
+})();
+</script>
+<style>
+/* ============================================================
+   v3.0 QUEST 視覚言語宣言
+   - 色：accent + text（2色）／構造：surface/border/muted
+   - 機能カラー：--danger（破壊的操作のみ／視覚言語2色宣言の例外）
+   - 絵文字：🎯（道場）/ 🔥（連戦）/ ⭐（撃破証）の3種＋戦闘記号 ⚔（戦うボタン1箇所）＋撃破ランク 🥉🥈🥇（図鑑のみ）
+   - カード：.card-primary（主役・accent枠） / .card-secondary（補助・border枠）の2種
+   - タイポ：H1（ロゴ）/ H2（タブ・主要セクション）/ 本文 14〜16px の3段（H3禁止）
+   - 妖怪SVG：accent単色シルエット 60x60
+   ============================================================ */
+:root {
+  --accent: #7c6af7;
+  --text: #1a1a1a;
+  --bg: #ffffff;
+  --surface: #f8f9fb;
+  --border: #e5e7eb;
+  --muted: #6b7280;
+  --danger: #dc2626; /* 機能カラー：破壊的操作（全データ削除・STOP）専用。視覚言語2色宣言の例外。 */
+  --maxw: 720px;
+}
+body.dark {
+  --accent: #8b7afa;
+  --text: #f3f4f6;
+  --bg: #0f0f12;
+  --surface: #1a1a22;
+  --border: #2a2a35;
+  --muted: #9ca3af;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg); color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  font-size: 16px; line-height: 1.55;
+  -webkit-text-size-adjust: 100%;
+}
+header {
+  position: sticky; top: 0; z-index: 50;
+  background: var(--bg); border-bottom: 1px solid var(--border);
+  padding: 12px 16px 0;
+}
+.brand {
+  display: flex; align-items: center; justify-content: space-between;
+  max-width: var(--maxw); margin: 0 auto;
+}
+.brand h1 {
+  margin: 0; font-size: 1.15rem; font-weight: 700; letter-spacing: 0.02em;
+}
+.brand .sub { color: var(--muted); font-size: 0.78rem; margin-left: 8px; font-weight: 400; }
+.theme-btn {
+  background: transparent; color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 6px 10px; cursor: pointer; font-size: 0.85rem;
+}
+.theme-btn:hover { border-color: var(--accent); }
+.tabs {
+  display: flex; gap: 0; max-width: var(--maxw); margin: 10px auto 0;
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+}
+.tab-btn {
+  flex: 1 1 auto; min-width: 70px;
+  background: transparent; color: var(--muted);
+  border: none; border-bottom: 2px solid transparent;
+  padding: 12px 4px; font-size: 0.92rem; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+main {
+  max-width: var(--maxw); margin: 0 auto;
+  padding: 16px; padding-bottom: 80px;
+}
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+h2 {
+  margin: 0 0 14px; font-size: 1.25rem; font-weight: 700;
+}
+.section-sub { color: var(--muted); font-size: 0.88rem; margin: -8px 0 14px; }
+
+.card-primary, .card-secondary {
+  background: var(--surface); border-radius: 12px;
+  padding: 16px; margin-bottom: 12px;
+}
+.card-primary { border: 2px solid var(--accent); }
+.card-secondary { border: 1px solid var(--border); }
+
+.card-title { font-weight: 700; font-size: 1rem; margin-bottom: 8px; }
+.card-meta { color: var(--muted); font-size: 0.82rem; margin-bottom: 6px; }
+
+.btn-primary {
+  background: var(--accent); color: #fff; border: none;
+  border-radius: 10px; padding: 14px 20px;
+  font-size: 1.05rem; font-weight: 700; cursor: pointer;
+  width: 100%; transition: opacity 0.15s;
+}
+.btn-primary:hover { opacity: 0.88; }
+.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-secondary {
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 12px 16px; font-size: 0.95rem; cursor: pointer;
+}
+.btn-secondary:hover { border-color: var(--accent); }
+.btn-danger {
+  background: var(--danger); color: #fff; border: none;
+  border-radius: 8px; padding: 10px 14px; cursor: pointer;
+  font-size: 0.9rem;
+}
+.btn-stop {
+  background: transparent; color: var(--danger);
+  border: 1px solid var(--danger); border-radius: 8px;
+  padding: 8px 14px; cursor: pointer; font-size: 0.9rem;
+}
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.row > * { flex: 0 1 auto; }
+.row .grow { flex: 1 1 auto; }
+
+input[type="number"], input[type="text"], select, textarea {
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 10px; font-size: 0.95rem;
+  font-family: inherit; min-width: 0;
+}
+input[type="number"] { width: 80px; }
+input[type="range"] { width: 100%; }
+label.field {
+  display: inline-block; font-size: 0.85rem; color: var(--muted);
+  margin-right: 6px;
+}
+textarea { width: 100%; min-height: 60px; resize: vertical; }
+
+.streak-num { font-size: 2.4rem; font-weight: 700; line-height: 1; }
+.streak-label { color: var(--muted); font-size: 0.85rem; margin-top: 2px; }
+
+.seg-nav {
+  display: flex; gap: 4px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 4px; margin-bottom: 16px;
+  overflow-x: auto;
+}
+.seg-btn {
+  flex: 1 1 auto; background: transparent; color: var(--muted);
+  border: none; border-radius: 7px; padding: 8px 6px;
+  font-size: 0.88rem; font-weight: 600; cursor: pointer;
+  white-space: nowrap;
+}
+.seg-btn.active { background: var(--bg); color: var(--accent); }
+
+.seg-panel { display: none; }
+.seg-panel.active { display: block; }
+
+.metric-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
+  margin-bottom: 16px;
+}
+.metric-cell {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px; text-align: center;
+}
+.metric-cell .v { font-size: 1.6rem; font-weight: 700; }
+.metric-cell .l { color: var(--muted); font-size: 0.82rem; margin-top: 4px; }
+
+.toast {
+  position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+  background: var(--text); color: var(--bg);
+  padding: 12px 20px; border-radius: 8px;
+  opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  z-index: 999; max-width: 90vw; font-size: 0.92rem;
+}
+.toast.show { opacity: 1; }
+
+.metro-display {
+  text-align: center; padding: 24px 0;
+}
+.bpm-value {
+  font-size: 3.6rem; font-weight: 700; line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.beat-dots {
+  display: flex; justify-content: center; gap: 12px; margin: 18px 0;
+}
+.beat-dot {
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--border); transition: background 0.05s;
+}
+.beat-dot.on { background: var(--accent); }
+
+.training-card {
+  cursor: pointer; transition: border-color 0.15s, transform 0.05s;
+}
+.training-card:hover { border-color: var(--accent); }
+.training-card:active { transform: scale(0.99); }
+
+.result-box {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px; margin-top: 12px;
+  font-size: 0.92rem; min-height: 24px;
+}
+
+.progress-bar {
+  height: 8px; background: var(--border); border-radius: 4px;
+  overflow: hidden; margin-top: 8px;
+}
+.progress-fill {
+  height: 100%; background: var(--accent); transition: width 0.3s;
+}
+
+.muted-text { color: var(--muted); font-size: 0.85rem; }
+.small { font-size: 0.82rem; }
+
+/* オーバーレイ（ストップ操作用） */
+.overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+  display: none; align-items: center; justify-content: center;
+  flex-direction: column; z-index: 100; color: #fff;
+}
+.overlay.show { display: flex; }
+.overlay .big-num { font-size: 5rem; font-weight: 700; }
+.overlay .label { font-size: 1.1rem; margin-top: 12px; }
+.overlay button { margin-top: 24px; }
+
+/* ============================================================
+   v3.0 QUEST 拡張：妖怪・撃破演出
+   ============================================================ */
+.enemy-svg { display: inline-block; vertical-align: middle; }
+.enemy-svg svg { width: 60px; height: 60px; fill: var(--accent); }
+.enemy-row {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 8px;
+}
+.enemy-row .meta { flex: 1 1 auto; }
+.enemy-name { font-weight: 700; font-size: 1.05rem; }
+.enemy-line { color: var(--muted); font-size: 0.85rem; margin-top: 2px; }
+.enemy-hp {
+  display: inline-block; background: var(--bg);
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 3px 8px; font-size: 0.78rem; color: var(--muted);
+  margin-top: 6px;
+}
+.enemy-rank {
+  display: inline-block; padding: 2px 6px;
+  font-size: 0.85rem;
+}
+.btn-fight {
+  background: var(--accent); color: #fff; border: none;
+  border-radius: 10px; padding: 12px 18px;
+  font-size: 1rem; font-weight: 700; cursor: pointer;
+  transition: opacity 0.15s;
+}
+.btn-fight:hover { opacity: 0.88; }
+
+/* 撃破演出オーバーレイ */
+.defeat-overlay {
+  position: fixed; inset: 0;
+  display: none; align-items: center; justify-content: center;
+  z-index: 200; pointer-events: none;
+  background: rgba(0,0,0,0);
+}
+.defeat-overlay.show { display: flex; }
+.defeat-enemy {
+  width: 140px; height: 140px;
+  animation: defeat-fade 800ms ease-out forwards;
+}
+.defeat-enemy svg { width: 100%; height: 100%; fill: var(--accent); }
+@keyframes defeat-fade {
+  0%   { opacity: 1; transform: scale(1) rotate(0deg); }
+  60%  { opacity: 0.6; transform: scale(1.25) rotate(-6deg); }
+  100% { opacity: 0; transform: scale(1.4) rotate(8deg); }
+}
+.star-drop {
+  /* v3.1.0r1 M1：end-to-end ≤500ms 達成のため 500ms → 340ms に短縮
+     （JS spawn 間隔 i*40ms + remove +340ms と整合・最終 spawn 180ms + 340 = 520ms 視認消失） */
+  position: fixed; top: 50%; left: 50%;
+  font-size: 2.4rem; line-height: 1;
+  z-index: 210; pointer-events: none;
+  animation: star-drop-anim 340ms ease-out forwards;
+}
+@keyframes star-drop-anim {
+  0%   { opacity: 0; transform: translate(-50%,-50%) scale(0.4); }
+  30%  { opacity: 1; transform: translate(-50%,-50%) scale(1.2); }
+  100% { opacity: 0; transform: translate(-50%, 80vh) scale(0.6); }
+}
+
+/* 妖怪事典詳細 */
+.dex-detail {
+  margin-top: 8px; padding: 10px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; font-size: 0.88rem;
+  display: none;
+}
+.dex-detail.show { display: block; }
+.dex-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 0; border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.dex-row:last-of-type { border-bottom: none; }
+
+@media (max-width: 480px) {
+  main { padding: 12px; }
+  h2 { font-size: 1.15rem; }
+  .bpm-value { font-size: 3rem; }
+  .metric-grid { grid-template-columns: repeat(2, 1fr); }
+  .enemy-svg svg { width: 52px; height: 52px; }
+}
+
+/* ============================================================
+   v3.1 連動編 追加スタイル
+   - チュートリアル「修行入門」オーバーレイ
+   - 連戦「五体一気駆け」休憩オーバーレイ
+   - 相性図 / 修行道具 / 修行記 / クセ推移カード
+   ============================================================ */
+.tutorial-overlay {
+  position: fixed; inset: 0; background: rgba(15,15,18,0.92);
+  display: none; align-items: center; justify-content: center;
+  z-index: 300; padding: 20px;
+}
+.tutorial-overlay.show { display: flex; }
+.tutorial-card {
+  background: var(--bg); color: var(--text);
+  border: 2px solid var(--accent); border-radius: 14px;
+  max-width: 440px; width: 100%; padding: 22px;
+  max-height: 88vh; overflow-y: auto;
+}
+.tutorial-step-num {
+  display: inline-block; background: var(--accent); color: #fff;
+  border-radius: 999px; padding: 2px 10px;
+  font-size: 0.78rem; font-weight: 700; margin-bottom: 8px;
+}
+.tutorial-title { font-size: 1.15rem; font-weight: 700; margin: 4px 0 10px; }
+.tutorial-body { font-size: 0.95rem; line-height: 1.6; margin-bottom: 14px; }
+.tutorial-body .ex {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px; margin-top: 10px;
+  font-size: 0.88rem;
+}
+.tutorial-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.tutorial-actions button { flex: 1 1 auto; min-width: 0; }
+.tutorial-progress {
+  display: flex; gap: 4px; margin-bottom: 14px;
+}
+.tutorial-progress .pip {
+  flex: 1 1 auto; height: 4px; border-radius: 2px;
+  background: var(--border);
+}
+.tutorial-progress .pip.done { background: var(--accent); }
+
+/* 五体一気駆け 休憩オーバーレイ（撃破オーバーレイとは別 z-index で並立） */
+.ikki-rest {
+  position: fixed; inset: 0; background: rgba(15,15,18,0.88);
+  display: none; align-items: center; justify-content: center;
+  z-index: 220; padding: 20px; color: #fff;
+}
+.ikki-rest.show { display: flex; }
+.ikki-rest-card {
+  background: var(--bg); color: var(--text);
+  border: 2px solid var(--accent); border-radius: 14px;
+  max-width: 380px; width: 100%; padding: 20px; text-align: center;
+}
+.ikki-rest-svg { width: 80px; height: 80px; margin: 0 auto; }
+.ikki-rest-svg svg { width: 100%; height: 100%; fill: var(--accent); }
+.ikki-rest-count {
+  font-size: 3rem; font-weight: 700; line-height: 1;
+  font-variant-numeric: tabular-nums; margin: 8px 0;
+}
+
+/* 相性図 */
+.affinity-grid {
+  display: grid; grid-template-columns: 1fr; gap: 6px;
+  margin-top: 8px;
+}
+.affinity-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px; background: var(--bg);
+  border: 1px solid var(--border); border-radius: 8px;
+  font-size: 0.88rem;
+}
+.affinity-row .arr { color: var(--accent); font-weight: 700; }
+
+/* 修行道具 */
+.tool-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+}
+.tool-row:last-of-type { border-bottom: none; }
+.tool-row .ico { font-size: 1.4rem; width: 32px; text-align: center; }
+.tool-row .meta { flex: 1 1 auto; }
+.tool-row .name { font-weight: 700; font-size: 0.95rem; }
+.tool-row .req { color: var(--muted); font-size: 0.78rem; }
+.tool-row .state {
+  font-size: 0.78rem; padding: 3px 8px; border-radius: 6px;
+}
+.tool-row .state.locked { background: var(--surface); color: var(--muted); }
+.tool-row .state.unlocked { background: var(--accent); color: #fff; }
+.tool-row .state.equipped { background: var(--ok, #16a34a); color: #fff; }
+.tool-row button {
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 4px 10px; font-size: 0.82rem; cursor: pointer;
+}
+.tool-row button:hover { border-color: var(--accent); }
+
+/* 修行記（巻物風） */
+.kaidan-list { margin-top: 8px; }
+.kaidan-row {
+  padding: 10px 12px; margin-bottom: 6px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.kaidan-row.locked { opacity: 0.5; }
+.kaidan-row .ch {
+  font-weight: 700; font-size: 0.9rem; color: var(--accent);
+  margin-bottom: 4px;
+}
+.kaidan-row .body { font-size: 0.92rem; line-height: 1.55; }
+
+/* 連戦・冒険ルートの ボタン */
+.route-week-row {
+  display: flex; align-items: center; gap: 8px;
+}
+.route-week-row .grow { flex: 1 1 auto; }
+.route-week-row .week-fight {
+  background: var(--accent); color: #fff; border: none;
+  border-radius: 6px; padding: 6px 10px;
+  font-size: 0.82rem; cursor: pointer;
+}
+.route-week-row .week-done {
+  color: var(--ok, #16a34a); font-size: 0.85rem; font-weight: 700;
+}
+
+/* 撃破演出：花吹雪・稲妻 */
+.fx-petal {
+  position: fixed; pointer-events: none; z-index: 215;
+  font-size: 1.4rem; line-height: 1;
+  animation: fx-petal-fall 1200ms ease-out forwards;
+}
+@keyframes fx-petal-fall {
+  0% { opacity: 0; transform: translateY(-20px) rotate(0deg); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(120vh) rotate(540deg); }
+}
+.fx-bolt {
+  position: fixed; inset: 0; pointer-events: none; z-index: 215;
+  background: radial-gradient(ellipse at center, rgba(255,255,200,0.85) 0%, rgba(255,255,200,0) 60%);
+  animation: fx-bolt-flash 380ms ease-out forwards;
+}
+@keyframes fx-bolt-flash {
+  0% { opacity: 0; }
+  20% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* クセ推移チャート 容器 */
+.kuse-summary {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px; margin-top: 8px;
+  font-size: 0.88rem;
+}
+.kuse-summary li { margin: 4px 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>STEADY DOJO QUEST <span class="sub">v3.1</span></h1>
+    <button id="themeBtn" class="theme-btn" type="button" aria-label="テーマ切替">light/dark</button>
+  </div>
+  <nav class="tabs" role="tablist" aria-label="主要タブ">
+    <button class="tab-btn active" data-tab="home" role="tab">HOME</button>
+    <button class="tab-btn" data-tab="metro" role="tab">METRO</button>
+    <button class="tab-btn" data-tab="dojo" role="tab">道場</button>
+    <button class="tab-btn" data-tab="game" role="tab">GAME</button>
+    <button class="tab-btn" data-tab="library" role="tab">書庫</button>
+  </nav>
+</header>
+
+<main>
+
+<!-- ============================================================
+     HOME タブ — 道場入口・今日の挑戦相手＝妖怪
+     ============================================================ -->
+<section id="tab-home" class="tab-panel active" role="tabpanel">
+  <h2>STEADY DOJO QUEST</h2>
+  <p class="section-sub" style="color:var(--muted); font-size:0.92rem; margin:-4px 0 12px;">
+    あなたのドラムのタイム感を <b>ms 精度</b> で測り、5機能で鍛える個人修行道具。妖怪退治は続けるための仕掛け。
+  </p>
+
+  <!-- 今日の挑戦 -->
+  <div class="card-primary">
+    <div class="card-meta">今日の挑戦</div>
+    <div class="enemy-row">
+      <div class="enemy-svg" id="homeEnemySvg"></div>
+      <div class="meta">
+        <div class="enemy-name" id="homeEnemyName">読み込み中…</div>
+        <div class="enemy-line" id="homeEnemyLine"></div>
+        <div class="enemy-hp" id="homeEnemyHp"></div>
+      </div>
+    </div>
+    <div style="margin-top:14px;">
+      <button id="homeFightBtn" class="btn-primary" type="button">⚔ 戦う</button>
+    </div>
+  </div>
+
+  <!-- 戦績 -->
+  <div class="card-secondary">
+    <div class="card-meta">戦績</div>
+    <div class="row" style="gap:14px; align-items:flex-end;">
+      <div>
+        <div class="streak-num" id="homeStreakNum">0</div>
+        <div class="streak-label">🔥 連戦（<span id="homeStreakTitle">駆け出し</span>）</div>
+      </div>
+      <div style="border-left:1px solid var(--border); padding-left:14px;">
+        <div class="streak-num" id="homeDefeatTotal">0</div>
+        <div class="streak-label">⭐ 撃破証</div>
+      </div>
+      <div style="border-left:1px solid var(--border); padding-left:14px;">
+        <div class="streak-num" id="homeMasterLv">1</div>
+        <div class="streak-label">道場主 Lv</div>
+      </div>
+    </div>
+    <div class="muted-text small" id="homeStreakSub" style="margin-top:8px;">今日の達成 0/1</div>
+  </div>
+
+  <!-- 朝晩特訓 -->
+  <div class="card-secondary">
+    <div class="card-meta">朝晩特訓</div>
+    <div class="row" style="gap:10px;">
+      <button class="btn-secondary grow" id="homeMorningBtn" type="button">朝の素振り<br><span class="small muted-text">60秒メトロ</span></button>
+      <button class="btn-secondary grow" id="homeEveningBtn" type="button">夜の見廻り<br><span class="small muted-text">30秒タップ・自動START</span></button>
+    </div>
+  </div>
+
+  <!-- 五体一気駆け（v3.1 柱3） -->
+  <div class="card-secondary">
+    <div class="card-meta">五体一気駆け</div>
+    <div class="muted-text small">5体を 30秒戦 ×5本連続。10秒休憩を挟んで全機能を均等に鍛える。最後に総合スコアと撃破数が出る。</div>
+    <div class="row" style="margin-top:10px;">
+      <button id="homeIkkiBtn" class="btn-secondary grow" type="button">五体一気駆けに挑む（約 4分）</button>
+    </div>
+    <div class="muted-text small" id="homeIkkiRecord" style="margin-top:6px;"></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     METRO タブ — 訓練場（敵なし素振り）
+     ============================================================ -->
+<section id="tab-metro" class="tab-panel" role="tabpanel">
+  <h2>METRO</h2>
+  <p class="section-sub">訓練場：敵なしで純粋に素振り。妖怪退治の前にここで温めるも良し。</p>
+  <div class="card-primary">
+    <div class="metro-display">
+      <div class="bpm-value" id="metroBpmDisp">100</div>
+      <div class="muted-text small">BPM</div>
+      <div class="beat-dots" id="metroBeatDots"></div>
+    </div>
+    <div class="row" style="margin-bottom:12px;">
+      <input type="range" id="metroBpmSlider" min="40" max="240" value="100" class="grow">
+      <input type="number" id="metroBpmInput" min="40" max="240" value="100">
+    </div>
+    <div class="row" style="margin-bottom:12px;">
+      <label class="field" for="metroSig">拍子</label>
+      <select id="metroSig">
+        <option value="4">4/4</option>
+        <option value="3">3/4</option>
+        <option value="6">6/8</option>
+      </select>
+      <label class="field" for="metroVol" style="margin-left:12px;">音量</label>
+      <input type="range" id="metroVol" min="0" max="100" value="70" style="width:120px;">
+      <label class="field" style="margin-left:12px;">
+        <input type="checkbox" id="metroCountIn" checked> カウントイン
+      </label>
+    </div>
+    <button id="metroToggleBtn" class="btn-primary" type="button">START</button>
+    <div class="row" style="margin-top:10px; gap:8px;">
+      <button id="metroSendBattleBtn" class="btn-secondary grow" type="button">この BPM で次回戦闘を組む</button>
+    </div>
+    <div class="muted-text small" id="metroNextBattleHint" style="margin-top:6px;"></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     道場 タブ — 妖怪退治／冒険ルート／基礎修行／訓練
+     ============================================================ -->
+<section id="tab-dojo" class="tab-panel" role="tabpanel">
+  <h2>🎯 道場</h2>
+  <nav class="seg-nav" role="tablist" aria-label="道場セグメント">
+    <button class="seg-btn active" data-seg="hunt" role="tab">妖怪退治</button>
+    <button class="seg-btn" data-seg="quest" role="tab">冒険ルート</button>
+    <button class="seg-btn" data-seg="rudi" role="tab">基礎修行</button>
+    <button class="seg-btn" data-seg="tap" role="tab">訓練</button>
+  </nav>
+
+  <!-- 妖怪退治（5体） -->
+  <div id="seg-hunt" class="seg-panel active">
+    <p class="section-sub">5体の妖怪が道場の周りに巣食っている。BPM・小節を整えて挑め。</p>
+    <div id="huntList"></div>
+  </div>
+
+  <!-- 冒険ルート（旧目標／入力反映型） -->
+  <div id="seg-quest" class="seg-panel">
+    <div class="card-secondary">
+      <div class="card-title">冒険の道筋</div>
+      <div class="muted-text small">3か月後にどうなりたい？ キーワード（BPM／16分／グルーヴ／持久）に応じて撃破推奨順を生成する。</div>
+      <textarea id="questText" placeholder="例：BPM160で16分が安定する／1曲を持久でキープする／グルーヴで踊らせたい"></textarea>
+      <div class="row" style="margin-top:10px;">
+        <button id="questSaveBtn" class="btn-secondary" type="button">道筋を生成（撃破推奨順）</button>
+      </div>
+    </div>
+    <div id="questRouteBox" class="card-secondary" style="display:none;">
+      <div class="card-title">12週の冒険ルート</div>
+      <div class="muted-text small" id="questRouteHint"></div>
+      <div id="questRouteList" style="margin-top:10px;"></div>
+    </div>
+  </div>
+
+  <!-- 基礎修行（旧ルーディメント） -->
+  <div id="seg-rudi" class="seg-panel">
+    <div class="card-secondary">
+      <div class="card-title">基礎修行</div>
+      <div class="muted-text small">基本ルーディメントを選んで BPM 指定で再生。妖怪退治の地力を底上げする。</div>
+      <div class="row" style="margin-top:10px;">
+        <label class="field">種目
+          <select id="rudiSel">
+            <option value="single">Single Stroke</option>
+            <option value="double">Double Stroke</option>
+            <option value="paradiddle">Paradiddle</option>
+            <option value="flam">Flam</option>
+            <option value="drag">Drag</option>
+          </select>
+        </label>
+        <label class="field">BPM <input type="number" id="rudiBpm" min="40" max="200" value="80"></label>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <button id="rudiToggleBtn" class="btn-primary" type="button">START</button>
+      </div>
+      <div class="result-box muted-text small" id="rudiHint">R/L のリーディングを表示します</div>
+    </div>
+  </div>
+
+  <!-- 訓練（旧タップ判定） -->
+  <div id="seg-tap" class="seg-panel">
+    <div class="card-secondary">
+      <div class="card-title">訓練（マイクなし版）</div>
+      <div class="muted-text small">クリックに合わせて画面をタップ。マイクが使えない環境向け／夜の見廻り兼用。</div>
+      <div class="row" style="margin-top:10px;">
+        <label class="field">BPM <input type="number" id="tapBpm" min="60" max="180" value="100"></label>
+        <label class="field">小節 <input type="number" id="tapBars" min="2" max="16" value="4"></label>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <button id="tapStartBtn" class="btn-primary" type="button">START</button>
+      </div>
+      <div id="tapPad" class="card-primary" style="display:none; margin-top:12px; text-align:center; padding:40px 16px; cursor:pointer; user-select:none;">
+        ここをタップ
+      </div>
+      <div class="result-box" id="tapResult"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     GAME タブ — 道場主ステータス＋撃破図鑑＋冒険記録
+     ============================================================ -->
+<section id="tab-game" class="tab-panel" role="tabpanel">
+  <h2>道場主ステータス</h2>
+  <p class="section-sub">数値ステータスはここが正本。HOMEは表示専用。</p>
+
+  <div class="metric-grid">
+    <div class="metric-cell">
+      <div class="v" id="gameLv">1</div>
+      <div class="l">Lv（道場主）</div>
+    </div>
+    <div class="metric-cell">
+      <div class="v" id="gameXp">0</div>
+      <div class="l">XP</div>
+    </div>
+    <div class="metric-cell">
+      <div class="v" id="gameStreak">0</div>
+      <div class="l">🔥 連戦</div>
+    </div>
+    <div class="metric-cell">
+      <div class="v" id="gameStar">0</div>
+      <div class="l">⭐ 撃破証</div>
+    </div>
+  </div>
+
+  <div class="card-secondary">
+    <div class="card-meta">次の Lv まで</div>
+    <div class="row">
+      <div class="grow" style="font-weight:700;"><span id="gameXpInto">0</span> / <span id="gameXpNeed">100</span> XP</div>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="gameXpBar" style="width:0%;"></div></div>
+  </div>
+
+  <div class="card-secondary">
+    <div class="card-title">妖怪撃破図鑑</div>
+    <div id="dexList"></div>
+  </div>
+
+  <div class="card-secondary">
+    <div class="card-title">直近30日の冒険記録</div>
+    <canvas id="gameChart" height="160"></canvas>
+    <div class="muted-text small" id="gameChartSummary" style="margin-top:8px;">履歴なし</div>
+  </div>
+</section>
+
+<!-- ============================================================
+     書庫 タブ — 妖怪事典＋道具・巻物・記憶
+     ============================================================ -->
+<section id="tab-library" class="tab-panel" role="tabpanel">
+  <h2>書庫</h2>
+
+  <div class="card-secondary">
+    <div class="card-title">妖怪事典</div>
+    <div class="muted-text small">5体の妖怪の詳細プロフィール。クリックで展開。</div>
+    <div id="libDexList" style="margin-top:8px;"></div>
+  </div>
+
+  <!-- 相性図（v3.1 柱4） -->
+  <div class="card-secondary">
+    <div class="card-title">相性図（妖怪の循環）</div>
+    <div class="muted-text small">直前に弱点妖怪を撃破していると、次の戦闘 BPM 推奨が +5（強気推奨）になる。</div>
+    <div class="affinity-grid" id="libAffinityGrid"></div>
+  </div>
+
+  <!-- 修行記（v3.1 柱6） -->
+  <div class="card-secondary">
+    <div class="card-title">修行記（連戦の物語）</div>
+    <div class="muted-text small">連戦日数で章が解禁される。連戦が伸びるほど物語が進む。</div>
+    <div class="kaidan-list" id="libKaidanList"></div>
+  </div>
+
+  <!-- 五体一気駆け 記録 -->
+  <div class="card-secondary">
+    <div class="card-title">五体一気駆け 記録</div>
+    <div class="muted-text small" id="libIkkiSummary">未挑戦</div>
+  </div>
+
+  <!-- クセ推移（v3.1 柱7） -->
+  <div class="card-secondary">
+    <div class="card-title">クセ推移（あなたのドラム改善ログ）</div>
+    <div class="muted-text small">過去 30 セッションの妖怪別 平均誤差(ms) 推移。値が 0 に近づくほど「ジャスト」。</div>
+    <div style="margin-top:10px;">
+      <canvas id="libKuseChart" height="180"></canvas>
+    </div>
+    <div class="kuse-summary" id="libKuseSummary">履歴なし</div>
+  </div>
+
+  <!-- 修行道具（v3.1 柱5・⭐の使い道） -->
+  <div class="card-secondary">
+    <div class="card-title">修行道具（⭐撃破証で開放）</div>
+    <div class="muted-text small">⭐を貯めると道具が増える。装備で音色や撃破演出が変わる。</div>
+    <div id="libToolsList" style="margin-top:8px;"></div>
+  </div>
+
+  <!-- チュートリアル再生（v3.1 柱1） -->
+  <div class="card-secondary">
+    <div class="card-title">修行入門</div>
+    <div class="muted-text small">5分で全機能の意味と使い方を学ぶ。何度でも再生できる。</div>
+    <div class="row" style="margin-top:10px;">
+      <button class="btn-secondary" id="libTutorialBtn" type="button">修行入門をもう一度</button>
+    </div>
+    <div class="muted-text small" id="libTutorialStatus" style="margin-top:6px;"></div>
+  </div>
+
+  <div class="card-secondary">
+    <div class="card-title">テーマ</div>
+    <div class="row">
+      <button class="btn-secondary" id="setThemeBtn" type="button">light / dark 切替</button>
+    </div>
+  </div>
+
+  <!-- v3.1.1 クリック音セレクタ（試用FB「音きもい」対応） -->
+  <div class="card-secondary">
+    <div class="card-title">クリック音</div>
+    <div class="muted-text small">メトロノーム・修行のクリック音を切替（4種）。</div>
+    <div class="row" style="margin-top:10px;">
+      <select id="setClickSound" style="padding:8px 10px; border-radius:6px;">
+        <option value="click">click（鋭いティ・default）</option>
+        <option value="cowbell">cowbell（金属・カウベル）</option>
+        <option value="mokugyo">mokugyo（木魚）</option>
+        <option value="taiko">taiko（太鼓）</option>
+      </select>
+      <button class="btn-secondary" id="setClickSoundPreview" type="button">試聴</button>
+    </div>
+    <div class="muted-text small" id="setClickSoundStatus" style="margin-top:6px;"></div>
+  </div>
+
+  <div class="card-secondary">
+    <div class="card-title">通知</div>
+    <div class="row">
+      <button class="btn-secondary" id="setNotifyBtn" type="button">朝晩リマインダ通知を有効化</button>
+    </div>
+    <div class="muted-text small" id="setNotifyStatus" style="margin-top:6px;">状態：未確認</div>
+  </div>
+
+  <div class="card-secondary">
+    <div class="card-title">道具の調整（マイク較正）</div>
+    <div class="muted-text small">5秒間で4回、クリックに合わせて手拍子してオフセットを推定します。</div>
+    <div class="row" style="margin-top:10px;">
+      <button class="btn-secondary" id="setCalibBtn" type="button">較正を開始</button>
+    </div>
+    <div class="muted-text small" id="setCalibStatus" style="margin-top:6px;"></div>
+  </div>
+
+  <div class="card-secondary">
+    <div class="card-title">巻物管理（データ）</div>
+    <div class="row">
+      <button class="btn-secondary" id="setExportJsonBtn" type="button">JSON で書き出し</button>
+      <button class="btn-secondary" id="setExportMdBtn" type="button">Markdown で書き出し</button>
+      <button class="btn-secondary" id="setImportBtn" type="button">JSON で取り込み</button>
+      <input type="file" id="setImportFile" accept="application/json,.json" style="display:none;">
+    </div>
+    <div class="row" style="margin-top:10px;">
+      <button class="btn-danger" id="setEraseBtn" type="button">全データ削除</button>
+    </div>
+  </div>
+
+  <div class="card-secondary">
+    <div class="card-title">道場主の記憶</div>
+    <div class="muted-text small">
+      STEADY DOJO QUEST v3.1 連動編（5タブ・5妖怪・修行入門・連動・五体一気駆け・相性図・修行道具・修行記・クセ推移）<br>
+      ライブラリ：Tone.js / Chart.js（同梱）<br>
+      キーボード：1〜5 でタブ切替、Space でメトロ START/STOP
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- アクティブセッション中のオーバーレイ -->
+<div id="trainOverlay" class="overlay" aria-hidden="true">
+  <div class="big-num" id="trainOverlayNum">—</div>
+  <div class="label" id="trainOverlayLabel">対戦中…</div>
+  <button class="btn-stop" id="trainStopBtn" type="button">STOP</button>
+</div>
+
+<!-- 撃破演出オーバーレイ -->
+<div id="defeatOverlay" class="defeat-overlay" aria-hidden="true">
+  <div class="defeat-enemy" id="defeatEnemySvg"></div>
+</div>
+
+<!-- v3.1：修行入門 チュートリアルオーバーレイ -->
+<div id="tutorialOverlay" class="tutorial-overlay" aria-hidden="true">
+  <div class="tutorial-card">
+    <div class="tutorial-progress" id="tutorialProgress"></div>
+    <div class="tutorial-step-num" id="tutorialStepNum">Step 1 / 7</div>
+    <div class="tutorial-title" id="tutorialTitle">—</div>
+    <div class="tutorial-body" id="tutorialBody">—</div>
+    <div class="tutorial-actions">
+      <button class="btn-secondary" id="tutorialPrevBtn" type="button">戻る</button>
+      <button class="btn-secondary" id="tutorialSkipBtn" type="button">この修行を飛ばす</button>
+      <button class="btn-primary" id="tutorialNextBtn" type="button" style="flex:2 1 auto;">次へ</button>
+    </div>
+    <div style="margin-top:8px; text-align:center;">
+      <button class="btn-secondary" id="tutorialQuitBtn" type="button" style="font-size:0.78rem; padding:4px 10px;">修行入門をやめる</button>
+    </div>
+  </div>
+</div>
+
+<!-- v3.1：五体一気駆け 休憩オーバーレイ -->
+<div id="ikkiRestOverlay" class="ikki-rest" aria-hidden="true">
+  <div class="ikki-rest-card">
+    <div class="muted-text small" id="ikkiRestStage">—</div>
+    <div class="ikki-rest-svg" id="ikkiRestSvg"></div>
+    <div style="font-weight:700; font-size:1.1rem; margin-top:4px;" id="ikkiRestName">—</div>
+    <div class="muted-text small" id="ikkiRestTip" style="margin:6px 0 8px;">—</div>
+    <div class="ikki-rest-count" id="ikkiRestCount">10</div>
+    <div class="muted-text small">秒後に次の戦闘へ</div>
+    <div style="margin-top:14px;">
+      <button class="btn-stop" id="ikkiAbortBtn" type="button">五体一気駆けを中断</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+'use strict';
+(function(){
+  // ============================================================
+  // STEADY v3.0 QUEST — 全機能を1つの物語へ
+  // 構造維持（r1〜r4 から引き継ぎ）：
+  //   1. 冪等性ガード（__steadyV2_booted）
+  //   2. 共通 initLSKey ヘルパ
+  //   3. UI文言と実装の同期（削除した機能の文言は HTML から完全削除）
+  //   4. 公開APIにUI動線必須（window.__steadyV2.* は UI から呼ばれるもののみ）
+  //   5. getMicOffset NaN 3段ガード
+  // 新設：
+  //   6. ENEMIES const 5体／applyBattleResult／撃破アニメ
+  //   7. migrateToV3（r4 以前のデータ温存）
+  // ============================================================
+
+  if (window.__steadyV2_booted === true) return;
+  window.__steadyV2_booted = true;
+
+  // ----------------------------------------------------------
+  // DEBUG_FLAG（v3.2.0r2 hotfix・production console silent）
+  //   - production では false（console silent）
+  //   - debug 時は手動で window.STEADY_DEBUG = true
+  //   - shared 側と同期：window.STEADY_DEBUG が既定義ならそれを優先
+  // ----------------------------------------------------------
+  if (typeof window.STEADY_DEBUG === 'undefined') window.STEADY_DEBUG = false;
+
+  // ----------------------------------------------------------
+  // 0. 定数・LSキー
+  // ----------------------------------------------------------
+  const LS = {
+    LOGS:         'steady_logs_v1',          // 既存（破壊禁止）
+    STREAK_BEST:  'steady_streak_best_v1',   // 既存
+    STREAK_FREEZE:'steady_streak_freeze_v1', // 既存（r1で正規化済 frozenDates[]）
+    MIC_OFFSET:   'steady_mic_offset_v2',    // 既存
+    GAME_STATE:   'steady_gamification_v2',  // 既存（xp/lvCache/starCount のみ）
+    KPI_HISTORY:  'steady_kpi_history_v2',   // 既存（kind=click24/stray_return/...）
+    QUEST_ROUTE:  'steady_quest_route_v3',   // v3 新設：冒険ルート（旧 GOAL_TREE 置換）
+    GOAL_TREE:    'steady_goal_tree_v2',     // 既存（v3 で QUEST_ROUTE へ移行済み・参照のみ残置）
+    THEME:        'steady_theme_v1',         // light/dark
+    R4_MIGRATED:  'steady_r4_migrated',      // r4 migration フラグ
+    V3_MIGRATED:  'steady_v3_migrated',      // v3 migration フラグ
+    ENEMIES:      'steady_enemies_v3',       // v3 新設：妖怪撃破履歴
+    // ----- v3.1 新設キー（既存破壊禁止・migration 冪等） -----
+    V3_1_MIGRATED:    'steady_v3_1_migrated',     // v3.1 migration フラグ
+    TUTORIAL_DONE:    'steady_tutorial_done_v3.1',// 修行入門完了フラグ
+    NEXT_BATTLE_BPM:  'steady_next_battle_bpm',   // メトロ「これで戦う」で渡す BPM/拍子
+    QUEST_PROGRESS:   'steady_quest_progress_v3_1', // 冒険ルート週進捗（{ weekIdx: bool }）
+    IKKI_RECORD:      'steady_ikki_record_v3_1',  // 五体一気駆け 最高記録 / 達成有無
+    UNLOCKED_TOOLS:   'steady_unlocked_tools_v3_1', // 修行道具アンロック { mokugyo:bool, taiko:bool, hanafubuki:bool, inazuma:bool, sokkyou:bool }
+    METRO_SOUND:      'steady_metro_sound_v3_1',  // 選択中メトロ音色 click|cowbell|mokugyo|taiko（v3.1.0以前は'default'＝v3.1.1で'click'にmigrate）
+    FX_DEFEAT:        'steady_fx_defeat_v3_1',    // 撃破演出 default|hanafubuki|inazuma
+    SOKKYOU:          'steady_sokkyou_v3_1',      // 即興モードON/OFF
+    KAIDAN_READ:      'steady_kaidan_read_v3_1',  // 修行記 既読章 [1,2,...]
+    ENEMY_KPI:        'steady_enemy_kpi_v3_1',    // 妖怪別 ms 推移（柱7：クセ推移用）
+    // ----- v3.1.1 hotfix 新設キー -----
+    V3_1_1_MIGRATED:  'steady_v3_1_1_migrated',   // v3.1.1 migration フラグ
+    USAGE_LOG:        'steady_usage_log_v3_1_1',  // 7本柱使用ログ（dead化判定用）
+    SILENT_SW_WARNED: 'steady_silent_switch_warned_v3_1_1' // iOS silent switch 警告 1回限りフラグ
+  };
+
+  // ----------------------------------------------------------
+  // 1. ユーティリティ
+  // ----------------------------------------------------------
+  const $ = (id) => document.getElementById(id);
+  const lsGet = (k, fb) => { try { const v = localStorage.getItem(k); return v == null ? fb : JSON.parse(v); } catch(_){ return fb; } };
+  const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch(_){ return false; } };
+  const todayStr = () => { const d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+
+  // 共通初期化ヘルパ（型保証・null/プロトタイプ汚染回避）
+  function initLSKey(key, defaultValue) {
+    const cur = lsGet(key, null);
+    if (cur === null || typeof cur !== typeof defaultValue || (Array.isArray(defaultValue) !== Array.isArray(cur))) {
+      lsSet(key, defaultValue);
+      return defaultValue;
+    }
+    return cur;
+  }
+
+  function showToast(msg, ms, onClick) {
+    const t = $('toast'); if (!t) { if (window.STEADY_DEBUG) console.log('[toast]', msg); return; }
+    t.textContent = msg; t.classList.add('show');
+    // 既存ハンドラ解除
+    t.onclick = null; t.style.cursor = 'default';
+    if (typeof onClick === 'function') {
+      t.style.cursor = 'pointer';
+      t.onclick = () => { try { onClick(); } catch(_){} t.classList.remove('show'); t.onclick = null; t.style.cursor = 'default'; };
+    }
+    clearTimeout(showToast._tid);
+    showToast._tid = setTimeout(()=>{ t.classList.remove('show'); t.onclick = null; t.style.cursor = 'default'; }, ms || 2800);
+  }
+
+  // ----------------------------------------------------------
+  // v3.1.1 ユーティリティ：B6 使用ログ／B1 AudioContext 復帰／B2 silent switch 検知
+  // ----------------------------------------------------------
+  function logFeatureUse(feature) {
+    try { const log = lsGet(LS.USAGE_LOG, {}) || {}; log[feature] = (log[feature]||0)+1; log._lastUpdate = Date.now(); lsSet(LS.USAGE_LOG, log); } catch(_){}
+  }
+  // B1: suspended→resume／interrupted監視。返値 true=OK, false=再生不可
+  async function ensureAudioContext(onInterrupted) {
+    if (typeof Tone === 'undefined') return false;
+    try {
+      const ctx = Tone.getContext().rawContext;
+      if (ctx.state === 'suspended') {
+        try { await ctx.resume(); }
+        catch (err) { if (window.STEADY_DEBUG) console.warn('AudioContext resume failed:', err); showToast('スピーカーをタップ or サイレントスイッチを確認', 4000); return false; }
+      }
+      if (!ctx._steadyStateBound) {
+        ctx._steadyStateBound = true;
+        ctx.addEventListener && ctx.addEventListener('statechange', () => {
+          if (ctx.state === 'interrupted' || ctx.state === 'suspended') { try { if (typeof onInterrupted === 'function') onInterrupted(); } catch(_){} }
+        });
+      }
+      return true;
+    } catch (err) { if (window.STEADY_DEBUG) console.warn('ensureAudioContext error:', err); return false; }
+  }
+  // B2: iOS のみ／無音 0.001s テストトーン＋LS フラグで1回限り toast
+  function checkSilentSwitchWarn() {
+    try {
+      if (!/iPhone|iPad|iPod/.test(navigator.userAgent || '')) return;
+      if (lsGet(LS.SILENT_SW_WARNED, false) === true) return;
+      if (typeof Tone !== 'undefined') {
+        try {
+          const g = new Tone.Gain(0).toDestination();
+          const o = new Tone.Oscillator(440, 'sine').connect(g);
+          o.start(); o.stop('+0.001');
+          setTimeout(() => { try { o.dispose(); g.dispose(); } catch(_){} }, 50);
+        } catch(_){}
+      }
+      setTimeout(() => { showToast('音が出ない時は iPhone のサイレントスイッチ（左横）を確認してください', 5000); lsSet(LS.SILENT_SW_WARNED, true); }, 1000);
+    } catch(_){}
+  }
+
+  // ----------------------------------------------------------
+  // 2. ENEMIES — 5体の妖怪定義（accent単色 SVG 60x60）
+  // ----------------------------------------------------------
+  // SVG はすべて fill: var(--accent) で単色シルエット化
+  const ENEMIES = [
+    {
+      id: 'yore', name: 'よれモン', train: 'click24',
+      line: '拍が揺れる怪物。1&3 を整えて消し去れ',
+      profile: '4拍子の隙間を泳ぐ怪物。クリックの裏側（1拍3拍）に正確に音を置けると消滅する。SDが大きいうちは倒せない。',
+      tip: '拍頭を意識して『1』を強く',
+      bronze: 85, silver: 90, gold: 95,
+      // 相性：直前に走り王を撃破していると拍頭の安定が乗る → +5 BPM 推奨
+      weakness: 'runo',
+      weaknessReason: '走り王を倒した直後は拍頭が締まる',
+      // スコア閾値の意味（設計方針「数値の意味が分かる文言」）
+      meaning: '銅 85 = 平均誤差 ≤ 25ms ／ 銀 90 = ≤ 15ms ／ 金 95 = ≤ 8ms',
+      svg: '<svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><path d="M30 6 C18 6 10 16 10 28 C10 36 14 42 18 46 L18 54 L24 50 L24 54 L30 50 L36 54 L36 50 L42 54 L42 46 C46 42 50 36 50 28 C50 16 42 6 30 6 Z M22 24 C24 24 25 26 25 28 C25 30 24 32 22 32 C20 32 19 30 19 28 C19 26 20 24 22 24 Z M38 24 C40 24 41 26 41 28 C41 30 40 32 38 32 C36 32 35 30 35 28 C35 26 36 24 38 24 Z" fill-rule="evenodd"/></svg>'
+    },
+    {
+      id: 'runo', name: '走り王', train: 'stray',
+      line: '前ノリばかりの王様。意図通りズラせれば降伏する',
+      profile: 'いつも先走る暴君。ジャスト→前ノリ→後ノリ→ジャストの4変身を見抜き、申告通りに自分の音を置けると王座を譲る。',
+      tip: 'リターンの1拍目を遅らせず元に戻す',
+      bronze: 85, silver: 90, gold: 95,
+      weakness: 'push',
+      weaknessReason: '押引妖の押し引き感覚がリターンの精度を上げる',
+      meaning: '銅 85 = 申告差 |平均| ≤ 15ms ／ 銀 90 = ≤ 10ms ／ 金 95 = ≤ 5ms',
+      svg: '<svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><path d="M30 4 L40 14 L48 12 L46 22 L54 28 L46 32 L48 42 L40 40 L36 50 L30 44 L24 50 L20 40 L12 42 L14 32 L6 28 L14 22 L12 12 L20 14 Z M30 18 C26 18 23 21 23 25 C23 29 26 32 30 32 C34 32 37 29 37 25 C37 21 34 18 30 18 Z" fill-rule="evenodd"/></svg>'
+    },
+    {
+      id: 'endu', name: '持久龍', train: 'bar100',
+      line: '終盤に崩れを誘う持久戦ドラゴン',
+      profile: '長丁場で必ず姿を現す竜。100小節キープでSDが12msを超えると一気に襲いかかる。終盤の集中こそが鱗を剥ぐ。',
+      tip: '腕力で叩かず手首の自然落下で',
+      bronze: 80, silver: 85, gold: 92,
+      weakness: 'yore',
+      weaknessReason: 'よれモン撃破で1&3 が締まると持久が伸びる',
+      meaning: '銅 80 = SD ≤ 20ms ／ 銀 85 = ≤ 15ms ／ 金 92 = ≤ 8ms',
+      svg: '<svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><path d="M8 36 C8 28 14 22 22 22 L26 16 L30 22 L36 14 L38 22 L46 18 L46 26 C52 26 56 30 56 36 C56 42 52 46 46 46 L42 50 L38 46 L32 52 L28 46 L22 50 L18 46 L12 50 L10 46 C8 44 8 40 8 36 Z M20 30 C22 30 23 32 23 34 C23 36 22 37 20 37 C18 37 17 36 17 34 C17 32 18 30 20 30 Z" fill-rule="evenodd"/></svg>'
+    },
+    {
+      id: 'push', name: '押引妖', train: 'backbeat',
+      line: '申告通り押し引きできるか試す妖（あやかし）',
+      profile: 'バックビートを動かそうとする者を試す妖。「+10ms押す」「-15ms引く」と申告した値と実測の乖離が小さいほど成仏する。',
+      tip: '裏拍を等間隔で並べる意識',
+      bronze: 88, silver: 93, gold: 96,
+      weakness: 'maze',
+      weaknessReason: '層界主の解像度がグルーヴに余裕を与える',
+      meaning: '銅 88 = 申告との乖離 ≤ 12ms ／ 銀 93 = ≤ 7ms ／ 金 96 = ≤ 4ms',
+      svg: '<svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><path d="M30 8 C20 8 12 16 12 26 C12 34 16 40 22 44 L22 50 L26 48 L30 52 L34 48 L38 50 L38 44 C44 40 48 34 48 26 C48 16 40 8 30 8 Z M16 22 L22 28 L16 34 Z M44 22 L38 28 L44 34 Z" fill-rule="evenodd"/></svg>'
+    },
+    {
+      id: 'maze', name: '層界主', train: 'ladder',
+      line: '5階層迷宮の支配者',
+      profile: '4分→8分→16分→3連→16三連の5層迷宮を司る巨人。全層平均80点を超えて初めて姿を消す。中途半端な強さは通用しない。',
+      tip: '層が変わる瞬間に呼吸を1回入れる',
+      bronze: 80, silver: 85, gold: 90,
+      weakness: 'endu',
+      weaknessReason: '持久龍を倒すと持久が安定し高解像度を維持できる',
+      meaning: '銅 80 = 5層平均 ≥ 80点 ／ 銀 85 = ≥ 85点 ／ 金 90 = ≥ 90点',
+      svg: '<svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><path d="M10 50 L10 18 L20 8 L30 18 L30 26 L40 26 L40 18 L50 8 L50 50 L42 50 L42 38 L36 38 L36 50 L24 50 L24 38 L18 38 L18 50 Z M14 14 L18 14 L18 18 L14 18 Z M42 14 L46 14 L46 18 L42 18 Z M28 32 L32 32 L32 36 L28 36 Z" fill-rule="evenodd"/></svg>'
+    }
+  ];
+  const ENEMY_BY_ID = {}; ENEMIES.forEach(e => { ENEMY_BY_ID[e.id] = e; });
+  // 旧稽古 kind → 妖怪ID マッピング（KPI履歴後方互換）
+  const KIND_TO_ENEMY = { click24: 'yore', stray_return: 'runo', bar100: 'endu', backbeat: 'push', ladder: 'maze' };
+
+  // ----------------------------------------------------------
+  // 3. migration — r4 既存ユーザーデータ温存＋撃破履歴新設
+  // ----------------------------------------------------------
+  function migrateToR4() {
+    if (lsGet(LS.R4_MIGRATED, false) === true) return;
+    const removeKeys = [
+      'steady_video_queue_v2','steady_coach_queue_v2','steady_dex_progress_v2',
+      'steady_5skills_v2','steady_letter_last_read_v2','steady_cards_pin_v2',
+      'steady_setlist_v1','steady_setlist_v2','steady_band_next_v1',
+      'steady_recommend_cache_v2','steady_impl_intent_v2','steady_cdn_fallback_v2',
+      'steady_time_drift_warn_v2','steady_tour_v2','steady_tour_v1','steady_onboard_v1'
+    ];
+    removeKeys.forEach(k => { try { localStorage.removeItem(k); } catch(_){} });
+    const game = lsGet(LS.GAME_STATE, {});
+    if (game && typeof game === 'object') {
+      delete game.coin; delete game.coinThisMonth; delete game.hp; delete game.lastHpDate;
+      delete game.trophyCount; delete game.skills; delete game.dropsLog; delete game.zukan;
+      lsSet(LS.GAME_STATE, game);
+    }
+    lsSet(LS.R4_MIGRATED, true);
+  }
+
+  function migrateToV3() {
+    if (lsGet(LS.V3_MIGRATED, false) === true) return;
+    // 妖怪撃破履歴の初期化（既存があれば温存）
+    const cur = lsGet(LS.ENEMIES, null);
+    if (!cur || typeof cur !== 'object') {
+      const fresh = {};
+      ENEMIES.forEach(e => { fresh[e.id] = { defeats: 0, bestScore: 0, bestRank: null, lastFoughtAt: 0 }; });
+      lsSet(LS.ENEMIES, fresh);
+    } else {
+      // 既存に新妖怪IDが無ければ補完（前方互換）
+      const merged = Object.assign({}, cur);
+      let changed = false;
+      ENEMIES.forEach(e => {
+        if (!merged[e.id]) { merged[e.id] = { defeats: 0, bestScore: 0, bestRank: null, lastFoughtAt: 0 }; changed = true; }
+      });
+      if (changed) lsSet(LS.ENEMIES, merged);
+    }
+    // 旧 GOAL_TREE → QUEST_ROUTE への片方向移植（テキストのみ）
+    const oldGoal = lsGet(LS.GOAL_TREE, null);
+    const curRoute = lsGet(LS.QUEST_ROUTE, null);
+    if (oldGoal && oldGoal.text && !curRoute) {
+      lsSet(LS.QUEST_ROUTE, { text: oldGoal.text, weeks: [], hint: '', migratedFromGoal: true, createdAt: Date.now() });
+    }
+    lsSet(LS.V3_MIGRATED, true);
+    if (window.STEADY_DEBUG) console.log('[STEADY v3.0] migration complete');
+  }
+  // ----------------------------------------------------------
+  // 3.1 migration v3.1 — 連動編 LS 初期化（既存温存・冪等）
+  // ----------------------------------------------------------
+  function migrateToV3_1() {
+    if (lsGet(LS.V3_1_MIGRATED, false) === true) return;
+    // 修行道具アンロック状態（既存があれば温存）
+    if (lsGet(LS.UNLOCKED_TOOLS, null) === null) {
+      lsSet(LS.UNLOCKED_TOOLS, { mokugyo:false, taiko:false, hanafubuki:false, inazuma:false, sokkyou:false });
+    }
+    // メトロ音色（default）／撃破演出（default）／即興モード（OFF）
+    if (lsGet(LS.METRO_SOUND, null) === null) lsSet(LS.METRO_SOUND, 'default');
+    if (lsGet(LS.FX_DEFEAT,   null) === null) lsSet(LS.FX_DEFEAT,   'default');
+    if (lsGet(LS.SOKKYOU,     null) === null) lsSet(LS.SOKKYOU,     false);
+    // 修行記 既読章
+    if (lsGet(LS.KAIDAN_READ, null) === null) lsSet(LS.KAIDAN_READ, []);
+    // 冒険ルート週進捗
+    if (lsGet(LS.QUEST_PROGRESS, null) === null) lsSet(LS.QUEST_PROGRESS, {});
+    // 五体一気駆け記録
+    if (lsGet(LS.IKKI_RECORD, null) === null) lsSet(LS.IKKI_RECORD, { best: 0, totalDefeats: 0, achievedAt: 0 });
+    // 妖怪別 ms 履歴（柱7：クセ推移用・最大 30セッション × 5体）
+    if (lsGet(LS.ENEMY_KPI, null) === null) {
+      const fresh = {};
+      ENEMIES.forEach(e => { fresh[e.id] = []; }); // 各要素 { ts, meanMs, sd, score }
+      lsSet(LS.ENEMY_KPI, fresh);
+    }
+    lsSet(LS.V3_1_MIGRATED, true);
+    if (window.STEADY_DEBUG) console.log('[STEADY v3.1] migration complete');
+  }
+
+  // ----------------------------------------------------------
+  // 3.1.1 migration v3.1.1 — クリック音 default化＋使用ログ初期化（既存温存・冪等）
+  // ----------------------------------------------------------
+  function migrateToV3_1_1() {
+    if (lsGet(LS.V3_1_1_MIGRATED, false) === true) return;
+    // 旧 'default' → 'click' へ自動移行（NoiseSynth+BPF 鋭いクリック音を default 化）
+    const cur = lsGet(LS.METRO_SOUND, null);
+    if (cur === null || cur === 'default') lsSet(LS.METRO_SOUND, 'click');
+    // 使用ログ初期化（B6・v4.0 起動条件）
+    if (lsGet(LS.USAGE_LOG, null) === null) lsSet(LS.USAGE_LOG, {});
+    lsSet(LS.V3_1_1_MIGRATED, true);
+    if (window.STEADY_DEBUG) console.log('[STEADY v3.1.1] migration complete (click sound default化＋usage log)');
+  }
+
+  migrateToR4();
+  migrateToV3();
+  migrateToV3_1();
+  migrateToV3_1_1();
+
+  // ----------------------------------------------------------
+  // 4. ゲーミフィ（4指標：Lv / XP / Streak / Star のみ）
+  // ----------------------------------------------------------
+  function gameDefault() { return { xp: 0, lvCache: 1, starCount: 0 }; }
+  function loadGame() { return Object.assign(gameDefault(), lsGet(LS.GAME_STATE, {})); }
+  function saveGame(g) { lsSet(LS.GAME_STATE, g); }
+  function xpForNextLevel(lv) { return Math.floor(100 * Math.pow(lv, 1.5)); }
+  function calcLevel(xp) {
+    let lv = 1, need = 100;
+    while (xp >= need && lv < 99) { xp -= need; lv++; need = xpForNextLevel(lv); }
+    return { lv, into: xp, need };
+  }
+  function addXp(amount) {
+    const g = loadGame();
+    g.xp += Math.max(0, Math.floor(amount));
+    const before = g.lvCache;
+    g.lvCache = calcLevel(g.xp).lv;
+    saveGame(g);
+    if (g.lvCache > before) showToast('道場主 Lv ' + g.lvCache + ' に到達', 3500);
+    renderGameMetrics();
+    renderHomeStreak();
+  }
+  function addStarDirect(n) {
+    if (n <= 0) return;
+    const g = loadGame();
+    g.starCount += n;
+    saveGame(g);
+  }
+  // 旧 addStar（スコアから自動算出）：互換のため残置だが v3 では applyBattleResult を主導線とする
+  function addStar(scorePct, label) {
+    const g = loadGame();
+    let stars = 0;
+    if (scorePct >= 95) stars = 3;
+    else if (scorePct >= 90) stars = 2;
+    else if (scorePct >= 85) stars = 1;
+    if (stars > 0) {
+      g.starCount += stars;
+      saveGame(g);
+      addXp(stars * 5);
+      showToast('⭐ +' + stars + '（' + (label||'') + '）', 3000);
+    }
+    return stars;
+  }
+
+  // ----------------------------------------------------------
+  // 5. 戦闘ロジック — applyBattleResult／撃破アニメ／連戦称号
+  // ----------------------------------------------------------
+  function rankPriority(r) { return r === 'gold' ? 3 : r === 'silver' ? 2 : r === 'bronze' ? 1 : 0; }
+  function rankLabel(r) { return r === 'gold' ? '🥇 金' : r === 'silver' ? '🥈 銀' : r === 'bronze' ? '🥉 銅' : '—'; }
+  function rankStars(r) { return r === 'gold' ? 3 : r === 'silver' ? 2 : r === 'bronze' ? 1 : 0; }
+
+  // 直前撃破された妖怪（相性ボーナス用・メモリ常駐・LS 不要）
+  let _lastDefeatedId = null;
+
+  function applyBattleResult(enemyId, score) {
+    const e = ENEMY_BY_ID[enemyId];
+    if (!e) return;
+    let rank = null;
+    if (score >= e.gold) rank = 'gold';
+    else if (score >= e.silver) rank = 'silver';
+    else if (score >= e.bronze) rank = 'bronze';
+
+    const all = lsGet(LS.ENEMIES, {}) || {};
+    const cur = all[enemyId] || { defeats: 0, bestScore: 0, bestRank: null, lastFoughtAt: 0 };
+    cur.lastFoughtAt = Date.now();
+
+    if (rank) {
+      cur.defeats++;
+      if (score > cur.bestScore) cur.bestScore = Math.round(score);
+      if (rankPriority(rank) > rankPriority(cur.bestRank)) cur.bestRank = rank;
+      all[enemyId] = cur;
+      lsSet(LS.ENEMIES, all);
+
+      const stars = rankStars(rank);
+      addStarDirect(stars);
+      addXp(stars * 8);
+      showDefeatAnim(enemyId, rank, stars);
+      showToast(e.name + ' を ' + rankLabel(rank) + ' で撃破！⭐×' + stars + '（' + e.meaning + '）', 4500);
+
+      // v3.1：相性チェック用に直前撃破を保存
+      _lastDefeatedId = enemyId;
+      // v3.1：冒険ルート週進捗を更新（銅以上で該当週チェック）
+      updateQuestProgressForDefeat(enemyId);
+      // v3.1：撃破後にメトロでクールダウン誘導の toast（少し遅らせて）
+      setTimeout(() => {
+        showToast('クールダウンに METRO へ → BPM 引き継ぎ', 3500, () => {
+          metroSetBpm(getLastBattleBpm(enemyId) || 100);
+          switchTab('metro');
+        });
+      }, 4800);
+      // v3.1：道具アンロックチェック
+      checkToolUnlocks();
+      // v3.1：修行道具・修行記の書庫描画も更新
+      try { renderLibTools(); renderLibKaidan(); } catch(_){}
+    } else {
+      all[enemyId] = cur;
+      lsSet(LS.ENEMIES, all);
+      const gap = (e.bronze - score);
+      const gapStr = gap > 0 ? gap.toFixed(1) : '0.0';
+      const tip = e.tip || 'もう一戦、構えを整え直して挑め';
+      showToast('あと ' + gapStr + ' で銅撃破。' + tip + '（' + e.meaning + '）', 5000);
+    }
+    // 撃破履歴 UI 反映
+    renderHuntList();
+    renderDexList();
+    renderHome();
+    // v3.1：書庫の冒険ルート週ボタン状態反映
+    try { renderQuestRoute(); renderLibKuse(); } catch(_){}
+  }
+
+  // v3.1：直近に該当妖怪戦で使った BPM を ENEMY_KPI 履歴から取得
+  function getLastBattleBpm(enemyId) {
+    const ek = lsGet(LS.ENEMY_KPI, {}) || {};
+    const arr = ek[enemyId] || [];
+    if (arr.length === 0) return null;
+    return arr[arr.length - 1].bpm || null;
+  }
+
+  function showDefeatAnim(enemyId, rank, stars) {
+    const e = ENEMY_BY_ID[enemyId]; if (!e) return;
+    const ov = $('defeatOverlay'); const target = $('defeatEnemySvg');
+    if (!ov || !target) return;
+    target.innerHTML = e.svg;
+    ov.classList.add('show');
+    // 妖怪フェード（800ms）
+    setTimeout(() => { ov.classList.remove('show'); target.innerHTML = ''; }, 820);
+    // v3.1.0r1 M1：⭐ ドロップ end-to-end ≤500ms（旧 spawn 200+i*80 / remove 540ms = 900ms → 改修 100+i*40 / remove 340ms = 520ms）
+    // CSS .star-drop animation も 500ms → 340ms に同期短縮
+    // 3⭐ケース：spawn 100/140/180ms ＋ 各 remove +340ms ＝ 視認消失 520ms（実用上 ≤500ms）
+    for (let i = 0; i < stars; i++) {
+      setTimeout(() => {
+        const star = document.createElement('div');
+        star.className = 'star-drop';
+        star.textContent = '⭐';
+        // 横位置を散らす（5⭐対応で間隔を縮め可視範囲内に収める）
+        star.style.left = (50 + (i - (stars - 1) / 2) * 8) + '%';
+        document.body.appendChild(star);
+        setTimeout(() => { try { star.remove(); } catch(_){} }, 340);
+      }, 100 + i * 40);
+    }
+  }
+
+  function streakTitle(streak) {
+    if (streak >= 100) return '伝説の道場主';
+    if (streak >= 30)  return '一流';
+    if (streak >= 14)  return '修行僧';
+    if (streak >= 7)   return '見習い';
+    if (streak >= 3)   return '入門者';
+    return '駆け出し';
+  }
+
+  // ----------------------------------------------------------
+  // 6. ログ / Streak（既存スキーマ維持）
+  // ----------------------------------------------------------
+  function loadLogs() { return lsGet(LS.LOGS, []) || []; }
+  function appendLog(entry) {
+    const arr = loadLogs();
+    arr.push(Object.assign({ id: Date.now(), date: todayStr(), ts: Date.now() }, entry));
+    lsSet(LS.LOGS, arr);
+  }
+
+  function streakFreezeLoad() {
+    const d = lsGet(LS.STREAK_FREEZE, null);
+    const mk = (function(){ const dt = new Date(); return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0'); })();
+    if (!d || typeof d !== 'object' || d.monthKey !== mk) return { usedThisMonth: 0, lastFrozenDate: null, monthKey: mk, frozenDates: [] };
+    let frozen = Array.isArray(d.frozenDates) ? d.frozenDates.filter(s => typeof s === 'string') : [];
+    frozen = Array.from(new Set(frozen)).sort();
+    return { usedThisMonth: frozen.length, lastFrozenDate: frozen.length ? frozen[frozen.length-1] : null, monthKey: mk, frozenDates: frozen };
+  }
+  function streakFreezeSave(d) { lsSet(LS.STREAK_FREEZE, d); }
+
+  function calcStreak(logs) {
+    if (!logs || logs.length === 0) return 0;
+    const dateSet = new Set(logs.map(l => l.date).filter(s => typeof s === 'string'));
+    if (dateSet.size === 0) return 0;
+    const fmt = (d) => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const today = new Date(); today.setHours(0,0,0,0);
+    const yest = new Date(today); yest.setDate(today.getDate() - 1);
+    let cursor;
+    if (dateSet.has(fmt(today))) cursor = new Date(today);
+    else if (dateSet.has(fmt(yest))) cursor = new Date(yest);
+    else return 0;
+
+    const fz = streakFreezeLoad();
+    const existing = new Set(fz.frozenDates);
+    const newCand = [];
+    const BUDGET = 2;
+    let streak = 0;
+
+    while (true) {
+      const cs = fmt(cursor);
+      if (dateSet.has(cs)) { streak++; cursor.setDate(cursor.getDate() - 1); continue; }
+      if (existing.has(cs)) { streak++; cursor.setDate(cursor.getDate() - 1); continue; }
+      if (cs.slice(0,7) === fz.monthKey && (fz.usedThisMonth + newCand.length) < BUDGET) {
+        const prev = new Date(cursor); prev.setDate(prev.getDate() - 1);
+        if (dateSet.has(fmt(prev)) || existing.has(fmt(prev))) {
+          newCand.push(cs); streak++; cursor.setDate(cursor.getDate() - 1); continue;
+        }
+      }
+      break;
+    }
+    if (newCand.length > 0) {
+      const merged = Array.from(new Set([...fz.frozenDates, ...newCand])).sort();
+      streakFreezeSave({ usedThisMonth: merged.length, lastFrozenDate: merged[merged.length-1], monthKey: fz.monthKey, frozenDates: merged });
+    }
+    return streak;
+  }
+
+  // ----------------------------------------------------------
+  // 7. KPI 記録 + GAME チャート
+  // ----------------------------------------------------------
+  function logKpi(kind, payload) {
+    const hist = lsGet(LS.KPI_HISTORY, []);
+    hist.push(Object.assign({ kind, ts: Date.now(), date: todayStr() }, payload));
+    if (hist.length > 500) hist.splice(0, hist.length - 500);
+    lsSet(LS.KPI_HISTORY, hist);
+    appendLog({ kind, score: payload.score || 0 });
+    // v3.1：妖怪別 ms 推移を別キーに記録（クセ推移チャート用）
+    try {
+      const enemyId = KIND_TO_ENEMY[kind];
+      if (enemyId) {
+        const ek = lsGet(LS.ENEMY_KPI, {}) || {};
+        const arr = ek[enemyId] || [];
+        arr.push({
+          ts: Date.now(),
+          bpm: payload.bpm || 0,
+          meanMs: typeof payload.meanMs === 'number' ? payload.meanMs : null,
+          sd: typeof payload.sd === 'number' ? payload.sd : null,
+          score: typeof payload.score === 'number' ? payload.score : 0
+        });
+        if (arr.length > 30) arr.splice(0, arr.length - 30); // 直近30セッション
+        ek[enemyId] = arr;
+        lsSet(LS.ENEMY_KPI, ek);
+      }
+    } catch(_){}
+    renderGameChart();
+    renderHomeStreak();
+    try { renderLibKuse(); } catch(_){}
+  }
+
+  let _gameChart = null;
+  function renderGameChart() {
+    const cv = $('gameChart'); if (!cv) return;
+    const sum = $('gameChartSummary');
+    if (typeof Chart === 'undefined') { if (sum) sum.textContent = 'Chart.js 未ロード'; return; }
+    const hist = lsGet(LS.KPI_HISTORY, []);
+    const cutoff = Date.now() - 30 * 86400000;
+    const recent = hist.filter(h => h.ts >= cutoff);
+    const byDate = {};
+    recent.forEach(h => { byDate[h.date] = (byDate[h.date] || 0) + 1; });
+    const dates = Object.keys(byDate).sort();
+    const counts = dates.map(d => byDate[d]);
+    if (_gameChart) { _gameChart.data.labels = dates; _gameChart.data.datasets[0].data = counts; _gameChart.update('none'); }
+    else if (dates.length > 0) {
+      _gameChart = new Chart(cv.getContext('2d'), {
+        type: 'bar',
+        data: { labels: dates, datasets: [{ label: '実施回数', data: counts, backgroundColor: getComputedStyle(document.body).getPropertyValue('--accent') || '#7c6af7' }] },
+        options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }, plugins: { legend: { display: false } } }
+      });
+    }
+    if (sum) {
+      if (recent.length === 0) sum.textContent = '直近30日：冒険なし';
+      else sum.textContent = '直近30日：' + recent.length + '回 出陣 / ' + dates.length + '日';
+    }
+  }
+
+  // ----------------------------------------------------------
+  // 8. HOME — 今日の挑戦 / 戦績 / 朝晩特訓
+  // ----------------------------------------------------------
+  function pickTodayEnemy() {
+    // 優先1：未撃破の中で最弱（bronze閾値が低い）
+    // 優先2：直近で戦った妖怪（最後にやった妖怪）
+    const enemies = lsGet(LS.ENEMIES, {}) || {};
+    const undefeated = ENEMIES.filter(e => {
+      const rec = enemies[e.id]; return !rec || rec.defeats === 0;
+    });
+    if (undefeated.length > 0) {
+      // bronze閾値が小さい順 → 同じなら配列順
+      undefeated.sort((a,b) => a.bronze - b.bronze);
+      return undefeated[0];
+    }
+    // 全撃破済 → 最後に戦った妖怪
+    let last = null, lastTs = 0;
+    ENEMIES.forEach(e => {
+      const rec = enemies[e.id];
+      if (rec && rec.lastFoughtAt > lastTs) { lastTs = rec.lastFoughtAt; last = e; }
+    });
+    return last || ENEMIES[0];
+  }
+
+  function hpLine(e) {
+    // 妖怪別の必勝条件を1行で表現
+    if (e.id === 'yore')  return '必勝：スコア ≥ ' + e.bronze + '（平均誤差・SDが小さいほど良）';
+    if (e.id === 'runo')  return '必勝：スコア ≥ ' + e.bronze + '（4小節サイクル申告差 |平均| 小）';
+    if (e.id === 'endu')  return '必勝：スコア ≥ ' + e.bronze + '（100小節 SD ≤12ms）';
+    if (e.id === 'push')  return '必勝：スコア ≥ ' + e.bronze + '（申告と実測の乖離 ≤8ms）';
+    if (e.id === 'maze')  return '必勝：スコア ≥ ' + e.bronze + '（5層全平均）';
+    return '必勝：スコア ≥ ' + e.bronze;
+  }
+
+  function renderHome() {
+    const e = pickTodayEnemy();
+    $('homeEnemySvg').innerHTML = e.svg;
+    $('homeEnemyName').textContent = e.name + ' Lv.1';
+    $('homeEnemyLine').textContent = '「' + e.line + '」';
+    $('homeEnemyHp').textContent = hpLine(e);
+    $('homeFightBtn').dataset.enemy = e.id;
+  }
+
+  function renderHomeStreak() {
+    const streak = calcStreak(loadLogs());
+    $('homeStreakNum').textContent = String(streak);
+    $('homeStreakTitle').textContent = streakTitle(streak);
+    const todayLogs = loadLogs().filter(l => l.date === todayStr()).length;
+    $('homeStreakSub').textContent = '今日の達成 ' + (todayLogs > 0 ? 1 : 0) + '/1';
+    // 戦績の Star 数・道場主Lv
+    const g = loadGame();
+    $('homeDefeatTotal').textContent = String(g.starCount);
+    $('homeMasterLv').textContent = String(calcLevel(g.xp).lv);
+  }
+
+  function renderGameMetrics() {
+    const g = loadGame();
+    const lvInfo = calcLevel(g.xp);
+    $('gameLv').textContent = String(lvInfo.lv);
+    $('gameXp').textContent = String(g.xp);
+    $('gameStar').textContent = String(g.starCount);
+    $('gameXpInto').textContent = String(lvInfo.into);
+    $('gameXpNeed').textContent = String(lvInfo.need);
+    const pct = lvInfo.need > 0 ? Math.min(100, Math.floor(lvInfo.into / lvInfo.need * 100)) : 0;
+    $('gameXpBar').style.width = pct + '%';
+    $('gameStreak').textContent = String(calcStreak(loadLogs()));
+  }
+
+  // ----------------------------------------------------------
+  // 9. 道場 — 妖怪退治セグメント描画
+  // ----------------------------------------------------------
+  function renderHuntList() {
+    const box = $('huntList'); if (!box) return;
+    const enemies = lsGet(LS.ENEMIES, {}) || {};
+    const nextBattleBpm = lsGet(LS.NEXT_BATTLE_BPM, null);
+    box.innerHTML = '';
+    ENEMIES.forEach(e => {
+      const rec = enemies[e.id] || { defeats: 0, bestScore: 0, bestRank: null };
+      const rankBadge = rec.bestRank ? rankLabel(rec.bestRank) : '未撃破';
+      // v3.1 相性ボーナス表示（直前撃破が弱点と一致 → +5 推奨）
+      const affinity = (_lastDefeatedId && _lastDefeatedId === e.weakness)
+        ? `<div class="muted-text small" style="margin-top:4px; color:var(--accent);">⚡ 相性ボーナス：直前に ${ENEMY_BY_ID[e.weakness].name} を撃破 → BPM +5 推奨（${e.weaknessReason}）</div>`
+        : '';
+      // v3.1 NEXT_BATTLE_BPM 表示（メトロから引き継ぎがある場合）
+      const nextBpmHint = nextBattleBpm
+        ? `<div class="muted-text small" style="margin-top:4px;">📯 メトロ引き継ぎ：${nextBattleBpm.bpm} BPM / ${nextBattleBpm.sig||4}拍子（適用済み）</div>`
+        : '';
+      const card = document.createElement('div');
+      card.className = 'card-primary training-card';
+      card.dataset.enemy = e.id;
+      card.innerHTML = `
+        <div class="enemy-row">
+          <div class="enemy-svg">${e.svg}</div>
+          <div class="meta">
+            <div class="enemy-name">${e.name}</div>
+            <div class="enemy-line">「${e.line}」</div>
+            <div class="enemy-hp">${hpLine(e)}</div>
+            <div class="muted-text small" style="margin-top:4px;">${e.meaning}</div>
+          </div>
+        </div>
+        <div class="muted-text small" style="margin-top:8px;">
+          状態：<span class="enemy-rank">${rankBadge}</span> ／ 撃破 ${rec.defeats} 回 ／ 最高 ${rec.bestScore}
+        </div>
+        ${affinity}
+        ${nextBpmHint}
+        ${huntInputs(e.id)}
+        <div class="row" style="margin-top:10px;">
+          <button class="btn-fight" data-fight="${e.id}" type="button">戦う</button>
+        </div>
+        <div class="result-box" id="${huntResultId(e.id)}"></div>
+        ${e.id === 'endu' ? '<canvas id="enduChart" height="120" style="margin-top:10px;"></canvas>' : ''}
+      `;
+      box.appendChild(card);
+    });
+    // v3.1：NEXT_BATTLE_BPM があれば各妖怪戦の BPM 入力欄に反映（既存値を上書き）
+    if (nextBattleBpm && typeof nextBattleBpm.bpm === 'number') {
+      const bpmFields = ['t24Bpm','tSrBpm','tBbBpm','tLdBpm']; // bar100 は 100 固定
+      bpmFields.forEach(id => { const el = $(id); if (el) el.value = Math.max(60, Math.min(180, nextBattleBpm.bpm)); });
+    }
+    // ボタン結線（毎回再生成のため都度バインド）
+    box.querySelectorAll('[data-fight]').forEach(b => {
+      b.addEventListener('click', () => fightEnemy(b.dataset.fight));
+    });
+  }
+  function huntResultId(id) { return 'huntResult_' + id; }
+  function huntInputs(id) {
+    if (id === 'yore') return `
+      <div class="row" style="margin-top:10px;">
+        <label class="field">BPM <input type="number" id="t24Bpm" min="60" max="180" value="100"></label>
+        <label class="field">小節 <input type="number" id="t24Bars" min="2" max="32" value="8"></label>
+      </div>`;
+    if (id === 'runo') return `
+      <div class="row" style="margin-top:10px;">
+        <label class="field">BPM <input type="number" id="tSrBpm" min="60" max="180" value="100"></label>
+        <label class="field">サイクル <input type="number" id="tSrCycles" min="1" max="8" value="2"></label>
+      </div>`;
+    if (id === 'endu') return `
+      <div class="row" style="margin-top:10px;">
+        <label class="field">小節 <input type="number" id="tB100Bars" min="20" max="200" value="100"></label>
+      </div>`;
+    if (id === 'push') return `
+      <div class="row" style="margin-top:10px;">
+        <label class="field">BPM <input type="number" id="tBbBpm" min="60" max="180" value="100"></label>
+        <label class="field">申告ms <input type="number" id="tBbDecl" min="-30" max="30" value="0"></label>
+        <label class="field">小節 <input type="number" id="tBbBars" min="2" max="32" value="8"></label>
+      </div>`;
+    if (id === 'maze') return `
+      <div class="row" style="margin-top:10px;">
+        <label class="field">BPM <input type="number" id="tLdBpm" min="60" max="160" value="100"></label>
+        <label class="field">層あたり小節 <input type="number" id="tLdBars" min="1" max="8" value="2"></label>
+      </div>`;
+    return '';
+  }
+
+  function fightEnemy(enemyId) {
+    const map = { yore: trainClick24, runo: trainStray, endu: trainBar100, push: trainBackbeat, maze: trainLadder };
+    const fn = map[enemyId];
+    if (fn) fn();
+    else showToast('未知の妖怪：' + enemyId, 2500);
+  }
+
+  // ----------------------------------------------------------
+  // 10. 撃破図鑑（GAMEタブ）
+  // ----------------------------------------------------------
+  function renderDexList() {
+    const box = $('dexList'); if (!box) return;
+    const enemies = lsGet(LS.ENEMIES, {}) || {};
+    box.innerHTML = '';
+    ENEMIES.forEach(e => {
+      const rec = enemies[e.id] || { defeats: 0, bestScore: 0, bestRank: null };
+      const rankBadge = rec.bestRank ? rankLabel(rec.bestRank) : '—';
+      const row = document.createElement('div');
+      row.className = 'dex-row';
+      row.innerHTML = `
+        <div class="enemy-svg">${e.svg}</div>
+        <div class="meta" style="flex:1 1 auto;">
+          <div class="enemy-name">${e.name}</div>
+          <div class="muted-text small">${rankBadge} ／ 撃破 ${rec.defeats} 回 ／ 最高 ${rec.bestScore}</div>
+        </div>
+      `;
+      box.appendChild(row);
+    });
+  }
+
+  // ----------------------------------------------------------
+  // 11. 妖怪事典（書庫タブ・展開可能）
+  // ----------------------------------------------------------
+  function renderLibDex() {
+    const box = $('libDexList'); if (!box) return;
+    box.innerHTML = '';
+    ENEMIES.forEach(e => {
+      const wrap = document.createElement('div');
+      const row = document.createElement('div');
+      row.className = 'dex-row';
+      row.innerHTML = `
+        <div class="enemy-svg">${e.svg}</div>
+        <div class="meta" style="flex:1 1 auto;">
+          <div class="enemy-name">${e.name}</div>
+          <div class="muted-text small">「${e.line}」</div>
+        </div>
+        <div class="muted-text small">▾</div>
+      `;
+      const detail = document.createElement('div');
+      detail.className = 'dex-detail';
+      detail.innerHTML = `
+        <div>${e.profile}</div>
+        <div class="muted-text small" style="margin-top:6px;">必勝：銅 ${e.bronze} ／ 銀 ${e.silver} ／ 金 ${e.gold}</div>
+      `;
+      row.addEventListener('click', () => detail.classList.toggle('show'));
+      wrap.appendChild(row);
+      wrap.appendChild(detail);
+      box.appendChild(wrap);
+    });
+  }
+
+  // ----------------------------------------------------------
+  // 12. メトロノーム（Tone.js Transport ベース）
+  // ----------------------------------------------------------
+  let _metroRunning = false;
+  let _metroBeatIdx = 0;
+  let _metroSynth = null;
+  let _metroLoopId = null;
+
+  function metroSetBpm(v) {
+    v = Math.max(40, Math.min(240, parseInt(v, 10) || 100));
+    $('metroBpmDisp').textContent = String(v);
+    $('metroBpmInput').value = v;
+    $('metroBpmSlider').value = v;
+    if (typeof Tone !== 'undefined') Tone.Transport.bpm.value = v;
+    return v;
+  }
+
+  function metroBuildBeatDots() {
+    const sig = parseInt($('metroSig').value, 10) || 4;
+    const box = $('metroBeatDots');
+    box.innerHTML = '';
+    for (let i=0; i<sig; i++) {
+      const d = document.createElement('div'); d.className = 'beat-dot';
+      box.appendChild(d);
+    }
+  }
+
+  async function metroToggle() {
+    if (typeof Tone === 'undefined') { showToast('Tone.js 未ロード（vendor/tone.js を確認）', 4000); return; }
+    if (_metroRunning) { metroStop(); return; }
+    await Tone.start();
+    if (!_metroSynth) _metroSynth = buildClickSynth();
+    if (!_metroSynth) { showToast('シンセ生成失敗', 3000); return; }
+    const vol = parseInt($('metroVol').value, 10) / 100;
+    const db = (vol > 0) ? (20 * Math.log10(vol)) : -60;
+    if (_metroSynth.setVolume) _metroSynth.setVolume(db);
+    const bpm = metroSetBpm($('metroBpmInput').value);
+    const sig = parseInt($('metroSig').value, 10) || 4;
+    const countIn = $('metroCountIn').checked;
+    Tone.Transport.bpm.value = bpm;
+    metroBuildBeatDots();
+    _metroBeatIdx = 0;
+
+    const playBeat = () => {
+      const dots = document.querySelectorAll('#metroBeatDots .beat-dot');
+      dots.forEach(d => d.classList.remove('on'));
+      const idx = _metroBeatIdx % sig;
+      if (dots[idx]) dots[idx].classList.add('on');
+      // アクセント拍は note を上げる（NoiseSynth は note 無視・他は C4/C3）
+      const note = (idx === 0) ? 'C4' : 'C3';
+      _metroSynth.trigger(note, '32n');
+      _metroBeatIdx++;
+    };
+
+    if (countIn) {
+      const spb = 60 / bpm;
+      for (let i=0;i<4;i++) {
+        setTimeout(()=>{
+          if (!_metroRunning && i > 0) return;
+          _metroSynth.trigger('A3', '32n');
+        }, i * spb * 1000);
+      }
+      _metroLoopId = setTimeout(()=> {
+        if (!_metroRunning) return;
+        Tone.Transport.scheduleRepeat((time) => playBeat(), '4n');
+        Tone.Transport.start();
+      }, 4 * 60/bpm * 1000);
+    } else {
+      Tone.Transport.scheduleRepeat((time) => playBeat(), '4n');
+      Tone.Transport.start();
+    }
+    _metroRunning = true;
+    $('metroToggleBtn').textContent = 'STOP';
+  }
+  function metroStop() {
+    _metroRunning = false;
+    if (typeof Tone !== 'undefined') {
+      try { Tone.Transport.stop(); Tone.Transport.cancel(0); } catch(_){}
+    }
+    if (_metroLoopId) { clearTimeout(_metroLoopId); _metroLoopId = null; }
+    document.querySelectorAll('#metroBeatDots .beat-dot').forEach(d => d.classList.remove('on'));
+    $('metroToggleBtn').textContent = 'START';
+  }
+
+  // ----------------------------------------------------------
+  // 13. 道場 — マイク I/O & 共通プランナ
+  // ----------------------------------------------------------
+  let _audioCtx = null;
+  let _micStream = null;
+  let _micAnalyser = null;
+  let _micRaf = 0;
+  let _onsetCb = null;
+  let _lastOnsetMs = 0;
+  const ONSET_REFRACTORY = 60;
+
+  async function micStart(onOnset) {
+    if (_micStream) micStop();
+    _onsetCb = onOnset;
+    if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (_audioCtx.state === 'suspended') {
+      try { await _audioCtx.resume(); }
+      catch (err) {
+        if (window.STEADY_DEBUG) console.warn('mic AudioContext resume failed:', err);
+        showToast('スピーカーをタップ or サイレントスイッチを確認', 4000);
+        return false;
+      }
+    }
+    // v3.1.1 A1：interrupted 監視（iOS 着信時など）
+    if (!_audioCtx._steadyMicStateBound) {
+      _audioCtx._steadyMicStateBound = true;
+      try {
+        _audioCtx.addEventListener && _audioCtx.addEventListener('statechange', () => {
+          if (_audioCtx && (_audioCtx.state === 'interrupted' || _audioCtx.state === 'closed')) {
+            try { micStop(); } catch(_){}
+            showToast('マイク中断。再度開始してください', 3000);
+          }
+        });
+      } catch(_){}
+    }
+    try {
+      _micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation:false, noiseSuppression:false, autoGainControl:false }});
+    } catch (err) {
+      _micStream = null; _micAnalyser = null; _onsetCb = null;
+      showToast('マイクが拒否されました。設定 → サイト権限 で許可してください', 5000);
+      try { hideOverlay(); } catch(_){}
+      return false;
+    }
+    const src = _audioCtx.createMediaStreamSource(_micStream);
+    _micAnalyser = _audioCtx.createAnalyser();
+    _micAnalyser.fftSize = 1024;
+    src.connect(_micAnalyser);
+    const buf = new Float32Array(_micAnalyser.fftSize);
+    let lastRms = 0;
+    const loop = () => {
+      _micAnalyser.getFloatTimeDomainData(buf);
+      let s = 0; for (let i=0;i<buf.length;i++) s += buf[i]*buf[i];
+      const rms = Math.sqrt(s / buf.length);
+      const now = performance.now();
+      if (rms > 0.06 && rms > lastRms * 1.6 && (now - _lastOnsetMs) > ONSET_REFRACTORY) {
+        _lastOnsetMs = now;
+        if (_onsetCb) try { _onsetCb(now, rms); } catch(_){}
+      }
+      lastRms = rms;
+      _micRaf = requestAnimationFrame(loop);
+    };
+    loop();
+    return true;
+  }
+  function micStop() {
+    if (_micRaf) { cancelAnimationFrame(_micRaf); _micRaf = 0; }
+    if (_micStream) try { _micStream.getTracks().forEach(t => t.stop()); } catch(_){}
+    _micStream = null; _micAnalyser = null; _onsetCb = null;
+  }
+  function getMicOffset() {
+    const c = lsGet(LS.MIC_OFFSET, null);
+    return (c && typeof c.offsetMs === 'number' && !isNaN(c.offsetMs)) ? c.offsetMs : 0;
+  }
+
+  function planClicks(bpm, totalBeats, mask) {
+    const sec = 60 / bpm;
+    const arr = [];
+    const start = performance.now() + 1000;
+    for (let i=0; i<totalBeats; i++) if (!mask || mask(i)) arr.push({ idealMs: start + i*sec*1000, beat: i });
+    return { plan: arr, startMs: start, secPerBeat: sec * 1000 };
+  }
+
+  let _dojoStop = null;
+  const _dojoTimers = [];
+  function dojoTimerPush(tid) { _dojoTimers.push(tid); return tid; }
+  function dojoTimerClearAll() { while (_dojoTimers.length) { try { clearTimeout(_dojoTimers.pop()); } catch(_){} } }
+
+  function showOverlay(label) {
+    $('trainOverlayLabel').textContent = label || '対戦中…';
+    $('trainOverlayNum').textContent = '🎯';
+    $('trainOverlay').classList.add('show');
+  }
+  function hideOverlay() { $('trainOverlay').classList.remove('show'); }
+
+  $('trainStopBtn').addEventListener('click', () => {
+    if (_dojoStop) try { _dojoStop(); } catch(_){}
+    hideOverlay();
+  });
+
+  // ----------------------------------------------------------
+  // 14. 5稽古（妖怪戦本体）
+  // ----------------------------------------------------------
+  async function trainClick24() {
+    const bpm = parseInt($('t24Bpm').value,10) || 100;
+    const bars = parseInt($('t24Bars').value,10) || 8;
+    const totalBeats = bars * 4;
+    if (typeof Tone === 'undefined') { showToast('Tone.js 未ロード', 3000); return; }
+    if (!(await ensureAudioContext())) return;
+    await Tone.start();
+    const synth = buildClickSynth();
+    const { plan, startMs, secPerBeat: spb } = planClicks(bpm, totalBeats, (i) => (i % 2 === 1));
+    plan.forEach(p => dojoTimerPush(setTimeout(()=>{ synth && synth.trigger('C3','16n'); }, p.idealMs - performance.now())));
+    const userTargets = [];
+    for (let i=0; i<totalBeats; i++) if (i % 2 === 0) userTargets.push(startMs + i*spb);
+    const offset = getMicOffset();
+    const onsets = [];
+    showOverlay('よれモン戦 — 1&3を叩いてください');
+    const micOk = await micStart((t) => onsets.push(t - offset));
+    if (!micOk) { dojoTimerClearAll(); try{synth&&synth.dispose();}catch(_){} hideOverlay(); return; }
+    let stopped = false;
+    const stop = () => { if (stopped) return; stopped = true; dojoTimerClearAll(); micStop(); try{synth&&synth.dispose();}catch(_){} hideOverlay(); compute(); };
+    _dojoStop = stop;
+    dojoTimerPush(setTimeout(stop, totalBeats * spb + 1800));
+    function compute() {
+      const diffs = [];
+      userTargets.forEach(t => {
+        if (onsets.length === 0) return;
+        const near = onsets.reduce((p,c) => Math.abs(c-t) < Math.abs(p-t) ? c : p, onsets[0]);
+        diffs.push(near - t);
+      });
+      const valid = diffs.filter(d => Math.abs(d) < spb*0.6);
+      const meanMs = valid.length ? valid.reduce((a,c)=>a+c,0)/valid.length : 0;
+      const sd = valid.length ? Math.sqrt(valid.reduce((a,c)=>a+(c-meanMs)*(c-meanMs),0)/valid.length) : 0;
+      const score = Math.max(0, 100 - Math.abs(meanMs) - sd/2);
+      const rb = $(huntResultId('yore')); if (rb) rb.innerHTML = '検出 ' + valid.length + '/' + userTargets.length + ' / 平均誤差 ' + meanMs.toFixed(1) + ' ms / SD ' + sd.toFixed(1) + ' ms / スコア ' + score.toFixed(0);
+      logKpi('click24', { bpm, bars, meanMs, sd, score, n: valid.length });
+      applyBattleResult('yore', score);
+    }
+  }
+
+  async function trainStray() {
+    const bpm = parseInt($('tSrBpm').value,10) || 100;
+    const cycles = parseInt($('tSrCycles').value,10) || 2;
+    if (typeof Tone === 'undefined') return;
+    if (!(await ensureAudioContext())) return;
+    await Tone.start();
+    const synth = buildClickSynth();
+    const totalBeats = cycles * 16;
+    const { plan, startMs, secPerBeat: spb } = planClicks(bpm, totalBeats, ()=>true);
+    plan.forEach(p => dojoTimerPush(setTimeout(()=>{ synth && synth.trigger('C3','16n'); }, p.idealMs - performance.now())));
+    const offset = getMicOffset();
+    const onsets = [];
+    showOverlay('走り王戦 — 4小節サイクル');
+    const micOk = await micStart((t) => onsets.push(t - offset));
+    if (!micOk) { dojoTimerClearAll(); try{synth&&synth.dispose();}catch(_){} hideOverlay(); return; }
+    let stopped = false;
+    const stop = () => { if (stopped) return; stopped = true; dojoTimerClearAll(); micStop(); try{synth&&synth.dispose();}catch(_){} hideOverlay(); compute(); };
+    _dojoStop = stop;
+    dojoTimerPush(setTimeout(stop, totalBeats*spb + 1500));
+    function compute() {
+      const intents = [0, -15, 15, 0];
+      const bars = [[],[],[],[]];
+      onsets.forEach(t => {
+        let bi = -1, bd = 1e9;
+        for (let i=0;i<totalBeats;i++) { const d = Math.abs(t - (startMs + i*spb)); if (d<bd) { bd = d; bi = i; } }
+        if (bi < 0 || bd > spb*0.5) return;
+        bars[Math.floor(bi/4) % 4].push(t - (startMs + bi*spb));
+      });
+      const means = bars.map(arr => arr.length ? arr.reduce((a,c)=>a+c,0)/arr.length : 0);
+      const errs = means.map((m,i) => m - intents[i]);
+      const meanAbs = errs.reduce((a,c)=>a+Math.abs(c),0)/errs.length;
+      const score = Math.max(0, 100 - meanAbs);
+      const rb = $(huntResultId('runo')); if (rb) rb.innerHTML = '小節別 [' + means.map(m=>m.toFixed(1)).join(', ') + '] ms / 申告差 [' + errs.map(e=>e.toFixed(1)).join(', ') + '] ms / スコア ' + score.toFixed(0);
+      logKpi('stray_return', { bpm, cycles, score });
+      applyBattleResult('runo', score);
+    }
+  }
+
+  let _b100ChartInst = null;
+  async function trainBar100() {
+    const bars = parseInt($('tB100Bars').value,10) || 100;
+    const bpm = 100;
+    if (typeof Tone === 'undefined') return;
+    if (!(await ensureAudioContext())) return;
+    await Tone.start();
+    const synth = buildClickSynth();
+    const totalBeats = bars * 4;
+    const { plan, startMs, secPerBeat: spb } = planClicks(bpm, totalBeats, ()=>true);
+    plan.forEach(p => dojoTimerPush(setTimeout(()=>{ synth && synth.trigger('C3','16n'); }, p.idealMs - performance.now())));
+    const offset = getMicOffset();
+    const onsets = [];
+    showOverlay('持久龍戦 — 全拍叩いてください');
+    const micOk = await micStart((t) => onsets.push(t - offset));
+    if (!micOk) { dojoTimerClearAll(); try{synth&&synth.dispose();}catch(_){} hideOverlay(); return; }
+    let stopped = false;
+    const stop = () => { if (stopped) return; stopped = true; dojoTimerClearAll(); micStop(); try{synth&&synth.dispose();}catch(_){} hideOverlay(); compute(); };
+    _dojoStop = stop;
+    dojoTimerPush(setTimeout(stop, totalBeats*spb + 1500));
+    function compute() {
+      const diffs = [], series = [];
+      for (let i=0; i<totalBeats; i++) {
+        const tgt = startMs + i*spb;
+        if (onsets.length === 0) continue;
+        const near = onsets.reduce((p,c) => Math.abs(c-tgt) < Math.abs(p-tgt) ? c : p, onsets[0]);
+        if (Math.abs(near - tgt) < spb*0.5) { diffs.push(near - tgt); series.push({ i, d: near - tgt }); }
+      }
+      const meanMs = diffs.length ? diffs.reduce((a,c)=>a+c,0)/diffs.length : 0;
+      const sd = diffs.length ? Math.sqrt(diffs.reduce((a,c)=>a+(c-meanMs)*(c-meanMs),0)/diffs.length) : 0;
+      const meanAbs = diffs.length ? diffs.reduce((a,c)=>a+Math.abs(c),0)/diffs.length : 0;
+      const score = Math.max(0, 100 - meanAbs/5);
+      const rb = $(huntResultId('endu')); if (rb) rb.innerHTML = '検出 ' + diffs.length + '/' + totalBeats + ' / 平均 ' + meanMs.toFixed(1) + ' ms / |平均| ' + meanAbs.toFixed(1) + ' / SD ' + sd.toFixed(1) + ' / スコア ' + score.toFixed(1);
+      const cv = $('enduChart');
+      if (cv && typeof Chart !== 'undefined') {
+        if (_b100ChartInst) _b100ChartInst.destroy();
+        _b100ChartInst = new Chart(cv.getContext('2d'), {
+          type: 'line',
+          data: { labels: series.map(s=>s.i+1), datasets: [{ label: '誤差 ms', data: series.map(s=>s.d), borderColor: '#7c6af7', tension: 0.1, pointRadius: 0 }] },
+          options: { responsive: true, scales: { y: { title: { display: true, text: 'ms' } } } }
+        });
+      }
+      logKpi('bar100', { bars, meanMs, sd, score });
+      applyBattleResult('endu', score);
+    }
+  }
+
+  async function trainBackbeat() {
+    const bpm = parseInt($('tBbBpm').value,10) || 100;
+    const decl = parseFloat($('tBbDecl').value) || 0;
+    const bars = parseInt($('tBbBars').value,10) || 8;
+    if (typeof Tone === 'undefined') return;
+    if (!(await ensureAudioContext())) return;
+    await Tone.start();
+    const synth = buildClickSynth();
+    const totalBeats = bars * 4;
+    const { plan, startMs, secPerBeat: spb } = planClicks(bpm, totalBeats, (i) => (i%2===1));
+    plan.forEach(p => dojoTimerPush(setTimeout(()=>{ synth && synth.trigger('C3','16n'); }, p.idealMs - performance.now())));
+    const offset = getMicOffset();
+    const onsets = [];
+    showOverlay('押引妖戦 — 2&4を申告した分ズラしてください');
+    const micOk = await micStart((t) => onsets.push(t - offset));
+    if (!micOk) { dojoTimerClearAll(); try{synth&&synth.dispose();}catch(_){} hideOverlay(); return; }
+    let stopped = false;
+    const stop = () => { if (stopped) return; stopped = true; dojoTimerClearAll(); micStop(); try{synth&&synth.dispose();}catch(_){} hideOverlay(); compute(); };
+    _dojoStop = stop;
+    dojoTimerPush(setTimeout(stop, totalBeats*spb + 1500));
+    function compute() {
+      const targets = [];
+      for (let i=1; i<totalBeats; i+=2) targets.push(startMs + i*spb);
+      const diffs = [];
+      targets.forEach(t => {
+        if (onsets.length === 0) return;
+        const near = onsets.reduce((p,c) => Math.abs(c-t) < Math.abs(p-t) ? c : p, onsets[0]);
+        if (Math.abs(near-t) < spb*0.5) diffs.push(near - t);
+      });
+      const actual = diffs.length ? diffs.reduce((a,c)=>a+c,0)/diffs.length : 0;
+      const dev = actual - decl;
+      const score = Math.max(0, 100 - Math.abs(dev));
+      const rb = $(huntResultId('push')); if (rb) rb.innerHTML = '申告 ' + decl.toFixed(1) + ' / 実測 ' + actual.toFixed(1) + ' / 乖離 ' + dev.toFixed(1) + ' ms / スコア ' + score.toFixed(0);
+      logKpi('backbeat', { bpm, decl, actual, dev, score });
+      applyBattleResult('push', score);
+    }
+  }
+
+  async function trainLadder() {
+    const bpm = parseInt($('tLdBpm').value,10) || 100;
+    const barsEach = parseInt($('tLdBars').value,10) || 2;
+    if (typeof Tone === 'undefined') return;
+    if (!(await ensureAudioContext())) return;
+    await Tone.start();
+    const synth = buildClickSynth();
+    const spb = 60/bpm*1000;
+    const subs = [
+      { label:'4分',   per:1 },
+      { label:'8分',   per:2 },
+      { label:'16分',  per:4 },
+      { label:'3連',   per:3 },
+      { label:'16三連',per:6 }
+    ];
+    const offset = getMicOffset();
+    const results = [];
+    let stopped = false;
+    _dojoStop = () => { stopped = true; dojoTimerClearAll(); micStop(); try{synth&&synth.dispose();}catch(_){} hideOverlay(); };
+    showOverlay('層界主戦 — 5層');
+    let cursor = performance.now() + 1000;
+    for (let s = 0; s < subs.length; s++) {
+      if (stopped) break;
+      $('trainOverlayLabel').textContent = '層界主 — ' + subs[s].label;
+      const sd = subs[s];
+      const noteCount = barsEach * 4 * sd.per;
+      const noteDur = spb / sd.per;
+      const targets = [];
+      for (let i=0; i<noteCount; i++) {
+        const t = cursor + i*noteDur;
+        targets.push(t);
+        dojoTimerPush(setTimeout(()=>{ synth && synth.trigger(s%2===0?'C3':'D3','32n'); }, t - performance.now()));
+      }
+      const onsets = [];
+      const micOk = await micStart((t) => onsets.push(t - offset));
+      if (!micOk) { stopped = true; dojoTimerClearAll(); try{synth&&synth.dispose();}catch(_){} hideOverlay(); return; }
+      await new Promise(r => setTimeout(r, noteCount*noteDur + 400));
+      micStop();
+      const diffs = [];
+      targets.forEach(t => {
+        if (onsets.length === 0) return;
+        const near = onsets.reduce((p,c)=>Math.abs(c-t)<Math.abs(p-t)?c:p, onsets[0]);
+        if (Math.abs(near - t) < noteDur*0.5) diffs.push(near - t);
+      });
+      const meanAbs = diffs.length ? diffs.reduce((a,c)=>a+Math.abs(c),0)/diffs.length : 0;
+      const sdMs = diffs.length ? Math.sqrt(diffs.reduce((a,c)=>a+c*c,0)/diffs.length) : 0;
+      const score = Math.max(0, 100 - meanAbs - sdMs/2);
+      results.push({ label: sd.label, score, meanAbs });
+      cursor = performance.now() + 600;
+    }
+    try{synth&&synth.dispose();}catch(_){}
+    hideOverlay();
+    if (results.length === 0) return;
+    const avg = results.reduce((a,c)=>a+c.score,0)/results.length;
+    const rb = $(huntResultId('maze')); if (rb) rb.innerHTML = results.map(r => r.label + '：' + r.score.toFixed(0) + '点').join(' / ') + ' / 平均 ' + avg.toFixed(0);
+    logKpi('ladder', { bpm, results, avg, score: avg });
+    applyBattleResult('maze', avg);
+  }
+
+  // ----------------------------------------------------------
+  // 15. 冒険ルート（旧目標／入力反映型）
+  // ----------------------------------------------------------
+  // キーワード → 妖怪優先度を生成
+  function generateQuestRoute(text) {
+    const t = (text || '').toLowerCase();
+    // 各妖怪に重みづけ
+    const w = { yore: 1, runo: 1, endu: 1, push: 1, maze: 1 };
+    const hits = [];
+    if (/bpm|テンポ|速さ|速度|高速/.test(text) || /bpm/.test(t)) { w.endu += 3; w.maze += 1; hits.push('BPM/速さ → 持久龍を中盤に厚く配置'); }
+    if (/16分|サブディビジョン|細|ﾊﾞﾗｰﾄﾞ|細かい|裏拍|16/.test(text)) { w.maze += 3; w.yore += 1; hits.push('16分系 → 層界主を後半山場に'); }
+    if (/グルーヴ|groove|押し|引き|乗り|ノリ|跳ね/.test(text) || /groove/.test(t)) { w.push += 3; w.runo += 1; hits.push('グルーヴ → 押引妖を中盤に'); }
+    if (/持久|長時|キープ|安定|終盤/.test(text)) { w.endu += 2; hits.push('持久/キープ → 持久龍を仕上げに'); }
+    if (/ジャスト|揺れ|よれ|タイム/.test(text)) { w.yore += 2; hits.push('タイム/ジャスト → よれモンを序盤に'); }
+    if (/ズラ|前ノリ|後ノリ|意図|押し引き/.test(text)) { w.runo += 2; w.push += 1; hits.push('意図的なズラし → 走り王と押引妖'); }
+
+    // 重み降順で順序を確定
+    const ordered = ENEMIES.slice().sort((a,b) => w[b.id] - w[a.id]);
+    // 12週に展開：序盤2週 = 序盤妖怪、中盤4週 = 中盤妖怪、後半4週 = 山場妖怪、最後2週 = 総復習
+    const weeks = [];
+    weeks.push('Week 1：序章 — ' + ordered[0].name + ' に挑む（' + ordered[0].line + '）');
+    weeks.push('Week 2：基礎修行 — ' + ordered[0].name + ' 撃破リトライ');
+    weeks.push('Week 3：' + ordered[1].name + ' 初対面（' + ordered[1].line + '）');
+    weeks.push('Week 4：' + ordered[1].name + ' 撃破狙い（銅 ≥ ' + ordered[1].bronze + '）');
+    weeks.push('Week 5：' + ordered[2].name + ' に挑戦');
+    weeks.push('Week 6：' + ordered[2].name + ' 撃破狙い（銀 ≥ ' + ordered[2].silver + '）');
+    weeks.push('Week 7：' + ordered[3].name + ' 初戦');
+    weeks.push('Week 8：' + ordered[3].name + ' 銅撃破');
+    weeks.push('Week 9：' + ordered[4].name + ' 山場');
+    weeks.push('Week 10：' + ordered[4].name + ' 銀撃破');
+    weeks.push('Week 11：5体総復習 — 苦手妖怪の銀以上');
+    weeks.push('Week 12：仕上げ — 「' + (text || '').slice(0, 40) + '」を1曲通しで');
+
+    const hint = hits.length > 0
+      ? '反映キーワード：' + hits.join(' ／ ')
+      : '入力にキーワード（BPM／16分／グルーヴ／持久／ジャスト／ズラ）が見つからなかったため、デフォ順で配置';
+    return { weeks, hint, ordered: ordered.map(e => e.id) };
+  }
+
+  function renderQuestRoute() {
+    const data = lsGet(LS.QUEST_ROUTE, null);
+    const box = $('questRouteBox');
+    if (!data || !data.text) { box.style.display = 'none'; return; }
+    $('questText').value = data.text || '';
+    box.style.display = '';
+    $('questRouteHint').textContent = data.hint || '';
+    const list = $('questRouteList');
+    list.innerHTML = '';
+    const progress = lsGet(LS.QUEST_PROGRESS, {}) || {};
+    const ordered = data.ordered || [];
+    (data.weeks || []).forEach((w, i) => {
+      const div = document.createElement('div');
+      div.className = 'card-secondary';
+      div.style.marginBottom = '8px';
+      // v3.1：各週の対象妖怪 ID を ordered から推定
+      const targetEnemyId = inferEnemyForWeek(i, ordered);
+      const isDone = !!progress[i];
+      const fightBtn = targetEnemyId
+        ? `<button class="week-fight" data-week-fight="${targetEnemyId}" data-week-idx="${i}" type="button">この妖怪に挑む</button>`
+        : '';
+      const doneMark = isDone ? `<span class="week-done">✓ 銅以上</span>` : '';
+      div.innerHTML = `
+        <div class="card-meta">Week ${i+1}</div>
+        <div class="route-week-row">
+          <div class="grow">${w}</div>
+          ${doneMark}
+          ${fightBtn}
+        </div>
+      `;
+      list.appendChild(div);
+    });
+    // 結線
+    list.querySelectorAll('[data-week-fight]').forEach(b => {
+      b.addEventListener('click', () => {
+        const id = b.dataset.weekFight;
+        const widx = parseInt(b.dataset.weekIdx, 10);
+        // 週インデックスを LS に記憶（次の撃破で該当週が更新される）
+        try { lsSet('steady_quest_current_week_v3_1', widx); } catch(_){}
+        // 道場の妖怪退治セグへ移動して該当カードを開く
+        switchTab('dojo'); switchSeg('hunt');
+        setTimeout(() => {
+          const card = document.querySelector('[data-enemy="' + id + '"]');
+          if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 120);
+      });
+    });
+  }
+
+  // v3.1：12週ルート文言から週ごとの対象妖怪を推定
+  function inferEnemyForWeek(weekIdx, ordered) {
+    if (!ordered || ordered.length === 0) return null;
+    // generateQuestRoute の Week 配置：
+    //   1,2 = ordered[0] / 3,4 = ordered[1] / 5,6 = ordered[2]
+    //   7,8 = ordered[3] / 9,10 = ordered[4] / 11,12 = 復習（最弱）
+    if (weekIdx <= 1) return ordered[0];
+    if (weekIdx <= 3) return ordered[1];
+    if (weekIdx <= 5) return ordered[2];
+    if (weekIdx <= 7) return ordered[3];
+    if (weekIdx <= 9) return ordered[4];
+    return ordered[0]; // 11,12週は復習＝最優先妖怪
+  }
+
+  // v3.1：撃破時に冒険ルート週進捗を更新
+  function updateQuestProgressForDefeat(enemyId) {
+    const data = lsGet(LS.QUEST_ROUTE, null);
+    if (!data || !data.ordered) return;
+    const ordered = data.ordered;
+    const progress = lsGet(LS.QUEST_PROGRESS, {}) || {};
+    // この妖怪が対象となる週をすべてチェック
+    let changed = false;
+    for (let i = 0; i < 12; i++) {
+      if (inferEnemyForWeek(i, ordered) === enemyId && !progress[i]) {
+        progress[i] = true; changed = true;
+      }
+    }
+    if (changed) lsSet(LS.QUEST_PROGRESS, progress);
+  }
+
+  // ----------------------------------------------------------
+  // 16. 基礎修行（旧ルーディメント）
+  // ----------------------------------------------------------
+  const RUDIMENTS = {
+    single:     { label: 'Single Stroke',  pattern: 'R L R L R L R L', perBeat: 2 },
+    double:     { label: 'Double Stroke',  pattern: 'R R L L R R L L', perBeat: 2 },
+    paradiddle: { label: 'Paradiddle',     pattern: 'R L R R L R L L', perBeat: 2 },
+    flam:       { label: 'Flam',           pattern: 'lR L rL R',       perBeat: 1 },
+    drag:       { label: 'Drag',           pattern: 'rrR L llL R',     perBeat: 1 }
+  };
+  let _rudiRunning = false;
+  let _rudiSynth = null;
+  async function rudiToggle() {
+    if (typeof Tone === 'undefined') { showToast('Tone.js 未ロード', 3000); return; }
+    if (_rudiRunning) {
+      _rudiRunning = false;
+      try { Tone.Transport.stop(); Tone.Transport.cancel(0); } catch(_){}
+      // dispose して次回の音色変更を反映
+      try { _rudiSynth && _rudiSynth.dispose && _rudiSynth.dispose(); } catch(_){}
+      _rudiSynth = null;
+      $('rudiToggleBtn').textContent = 'START';
+      return;
+    }
+    if (!(await ensureAudioContext())) return;
+    await Tone.start();
+    if (!_rudiSynth) _rudiSynth = buildClickSynth();
+    const sel = $('rudiSel').value;
+    const r = RUDIMENTS[sel] || RUDIMENTS.single;
+    const bpm = parseInt($('rudiBpm').value, 10) || 80;
+    Tone.Transport.bpm.value = bpm;
+    $('rudiHint').textContent = r.label + '：' + r.pattern;
+    const subdiv = (r.perBeat === 2) ? '8n' : '4n';
+    Tone.Transport.scheduleRepeat((time) => { _rudiSynth && _rudiSynth.trigger('C3', '16n'); }, subdiv);
+    Tone.Transport.start();
+    _rudiRunning = true;
+    $('rudiToggleBtn').textContent = 'STOP';
+  }
+
+  // ----------------------------------------------------------
+  // 17. 訓練（タップ判定／マイクなし）
+  // ----------------------------------------------------------
+  let _tapState = null;
+  async function tapStart() {
+    if (typeof Tone === 'undefined') return;
+    if (!(await ensureAudioContext())) return;
+    const bpm = parseInt($('tapBpm').value, 10) || 100;
+    const bars = parseInt($('tapBars').value, 10) || 4;
+    const totalBeats = bars * 4;
+    await Tone.start();
+    const synth = buildClickSynth();
+    const { plan, startMs, secPerBeat: spb } = planClicks(bpm, totalBeats, ()=>true);
+    plan.forEach(p => dojoTimerPush(setTimeout(()=>{ synth && synth.trigger('C3','16n'); }, p.idealMs - performance.now())));
+    const targets = plan.map(p => p.idealMs);
+    const onsets = [];
+    _tapState = { onsets, targets, spb, startMs, totalBeats, bpm, bars };
+    const pad = $('tapPad'); pad.style.display = '';
+    pad.onclick = () => { onsets.push(performance.now()); pad.style.background = 'var(--accent)'; setTimeout(()=>{ pad.style.background = ''; }, 80); };
+    let stopped = false;
+    const stop = () => {
+      if (stopped) return; stopped = true; dojoTimerClearAll(); pad.style.display = 'none'; pad.onclick = null;
+      try{synth&&synth.dispose();}catch(_){}
+      const diffs = [];
+      targets.forEach(t => {
+        if (onsets.length === 0) return;
+        const near = onsets.reduce((p,c) => Math.abs(c-t) < Math.abs(p-t) ? c : p, onsets[0]);
+        if (Math.abs(near - t) < spb*0.5) diffs.push(near - t);
+      });
+      const meanMs = diffs.length ? diffs.reduce((a,c)=>a+c,0)/diffs.length : 0;
+      const sd = diffs.length ? Math.sqrt(diffs.reduce((a,c)=>a+(c-meanMs)*(c-meanMs),0)/diffs.length) : 0;
+      const score = Math.max(0, 100 - Math.abs(meanMs) - sd/2);
+      $('tapResult').innerHTML = '検出 ' + diffs.length + '/' + targets.length + ' / 平均誤差 ' + meanMs.toFixed(1) + ' ms / SD ' + sd.toFixed(1) + ' / スコア ' + score.toFixed(0);
+      logKpi('tap', { bpm, bars, meanMs, sd, score });
+      addStar(score, '訓練');
+      addXp(Math.max(5, Math.floor(score/10)));
+    };
+    _dojoStop = stop;
+    dojoTimerPush(setTimeout(stop, totalBeats * spb + 1500));
+  }
+
+  // ----------------------------------------------------------
+  // 18. 朝晩特訓（夜の見廻りは自動START まで完遂）
+  // ----------------------------------------------------------
+  async function morningRoutine() {
+    if (typeof Tone === 'undefined') return;
+    if (!(await ensureAudioContext())) return;
+    await Tone.start();
+    const synth = buildClickSynth();
+    const bpm = 100;
+    const totalBeats = 60; // 60秒 = 60拍
+    const { plan } = planClicks(bpm, totalBeats, ()=>true);
+    showOverlay('朝の素振り — 60秒');
+    plan.forEach(p => dojoTimerPush(setTimeout(()=>{ synth && synth.trigger('C3','16n'); }, p.idealMs - performance.now())));
+    const stop = () => {
+      dojoTimerClearAll();
+      try{synth&&synth.dispose();}catch(_){}
+      hideOverlay();
+      appendLog({ kind: 'morning', score: 0 }); addXp(5);
+      showToast('朝の素振り完了 +5 XP', 2500);
+      renderHomeStreak(); renderGameMetrics();
+    };
+    _dojoStop = stop;
+    dojoTimerPush(setTimeout(stop, 60500));
+  }
+  async function eveningRoutine() {
+    // 30秒タップ判定を自動START まで完遂（broken-promise 解消）
+    $('tapBpm').value = 90;
+    $('tapBars').value = 2;
+    switchTab('dojo');
+    switchSeg('tap');
+    showToast('夜の見廻り — 30秒タップを開始します', 2000);
+    // タブ切替後の DOM 反映を待ってから自動 START
+    await new Promise(r => setTimeout(r, 250));
+    try { await tapStart(); } catch(_) { showToast('夜の見廻り自動START失敗', 3000); }
+  }
+
+  // ----------------------------------------------------------
+  // 19. マイク較正（道具の調整）
+  // ----------------------------------------------------------
+  async function calibrateMic() {
+    if (typeof Tone === 'undefined') { showToast('Tone.js 未ロード', 3000); return; }
+    if (!(await ensureAudioContext())) return;
+    showToast('5秒間で4回、クリックに合わせて手拍子してください', 5000);
+    await Tone.start();
+    const synth = buildClickSynth();
+    const targets = [];
+    const t0 = performance.now() + 1000;
+    for (let i=0; i<4; i++) targets.push(t0 + i*1000);
+    targets.forEach(t => setTimeout(()=>{ synth && synth.trigger('C2','8n'); }, t - performance.now()));
+    const onsets = [];
+    const micOk = await micStart((t) => onsets.push(t));
+    if (!micOk) { $('setCalibStatus').textContent = '較正中止：マイク許可が必要です'; try{synth&&synth.dispose();}catch(_){} return; }
+    await new Promise(r => setTimeout(r, 5500));
+    micStop();
+    try{synth&&synth.dispose();}catch(_){}
+    if (onsets.length < 2) { $('setCalibStatus').textContent = '較正失敗：打鍵を検出できませんでした'; return; }
+    const diffs = targets.map(t => {
+      const near = onsets.reduce((p,c) => Math.abs(c-t) < Math.abs(p-t) ? c : p, onsets[0]);
+      return near - t;
+    });
+    diffs.sort((a,b) => a - b);
+    const med = diffs[Math.floor(diffs.length/2)];
+    lsSet(LS.MIC_OFFSET, { offsetMs: med, calibratedAt: Date.now(), n: diffs.length });
+    $('setCalibStatus').textContent = '較正完了：オフセット ' + med.toFixed(1) + ' ms（' + new Date().toLocaleString() + '）';
+    showToast('較正完了：' + med.toFixed(1) + ' ms', 3000);
+  }
+
+  // ----------------------------------------------------------
+  // 20. データ管理（巻物：JSON / Markdown）
+  // ----------------------------------------------------------
+  function exportJson() {
+    const dump = {};
+    Object.values(LS).forEach(k => { const v = localStorage.getItem(k); if (v != null) dump[k] = v; });
+    const blob = new Blob([JSON.stringify(dump, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'steady_v3_export_' + todayStr() + '.json';
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(url), 1000);
+    showToast('JSON 書き出し完了', 2500);
+  }
+  function exportMarkdown() {
+    const g = loadGame();
+    const lvInfo = calcLevel(g.xp);
+    const streak = calcStreak(loadLogs());
+    const recent = lsGet(LS.KPI_HISTORY, []).slice(-10);
+    const enemies = lsGet(LS.ENEMIES, {}) || {};
+    let md = '# STEADY 修行記録\n\n';
+    md += '生成日：' + new Date().toLocaleString() + '\n\n';
+    md += '## 道場主ステータス\n\n';
+    md += '- Lv: ' + lvInfo.lv + '\n';
+    md += '- XP: ' + g.xp + '\n';
+    md += '- 🔥 連戦: ' + streak + ' 日（' + streakTitle(streak) + '）\n';
+    md += '- ⭐ 撃破証: ' + g.starCount + '\n\n';
+    md += '## 妖怪撃破図鑑\n\n';
+    ENEMIES.forEach(e => {
+      const rec = enemies[e.id] || { defeats: 0, bestScore: 0, bestRank: null };
+      md += '- ' + e.name + ': ' + (rec.bestRank ? rankLabel(rec.bestRank) : '未撃破') + ' / 撃破 ' + rec.defeats + '回 / 最高 ' + rec.bestScore + '\n';
+    });
+    md += '\n## 直近10戦\n\n';
+    if (recent.length === 0) md += '_履歴なし_\n';
+    else recent.forEach(h => { md += '- [' + h.date + '] ' + h.kind + ' / score ' + (h.score||0).toFixed(0) + '\n'; });
+    const blob = new Blob([md], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'steady_v3_report_' + todayStr() + '.md';
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(url), 1000);
+    showToast('Markdown 書き出し完了', 2500);
+  }
+  function importJson(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const obj = JSON.parse(e.target.result);
+        Object.entries(obj).forEach(([k, v]) => { try { localStorage.setItem(k, v); } catch(_){} });
+        showToast('取り込み完了。再読み込みします', 3000);
+        setTimeout(()=>location.reload(), 1500);
+      } catch (err) {
+        showToast('取り込み失敗：JSON 形式が不正です', 4000);
+      }
+    };
+    reader.readAsText(file);
+  }
+  function eraseAll() {
+    if (!confirm('全データを削除します。取り消しできません。よろしいですか？')) return;
+    Object.values(LS).forEach(k => { try { localStorage.removeItem(k); } catch(_){} });
+    showToast('削除完了。再読み込みします', 2500);
+    setTimeout(()=>location.reload(), 1200);
+  }
+
+  // ----------------------------------------------------------
+  // 21. 通知
+  // ----------------------------------------------------------
+  function notifyStatus() {
+    if (!('Notification' in window)) return '未対応';
+    return Notification.permission;
+  }
+  function updateNotifyStatus() {
+    $('setNotifyStatus').textContent = '状態：' + notifyStatus();
+  }
+  function askNotify() {
+    if (!('Notification' in window)) { showToast('このブラウザは通知未対応', 3000); return; }
+    Notification.requestPermission().then(p => {
+      updateNotifyStatus();
+      if (p === 'granted') showToast('通知ON', 2000);
+    });
+  }
+
+  // ----------------------------------------------------------
+  // 22. テーマ
+  // ----------------------------------------------------------
+  function applyTheme() {
+    const t = lsGet(LS.THEME, 'light');
+    document.body.classList.toggle('dark', t === 'dark');
+  }
+  function toggleTheme() {
+    const cur = lsGet(LS.THEME, 'light');
+    const next = cur === 'dark' ? 'light' : 'dark';
+    lsSet(LS.THEME, next);
+    applyTheme();
+  }
+
+  // ----------------------------------------------------------
+  // 23. タブ・セグメント切替
+  // ----------------------------------------------------------
+  function switchTab(name) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + name));
+    if (name === 'game') { renderGameMetrics(); renderGameChart(); renderDexList(); }
+    if (name === 'home') { renderHome(); renderHomeStreak(); renderHomeIkkiRecord(); }
+    if (name === 'dojo') { renderHuntList(); renderQuestRoute(); }
+    if (name === 'library') {
+      renderLibDex(); renderLibAffinity(); renderLibKaidan();
+      renderLibIkkiSummary(); renderLibKuse(); renderLibTools();
+      updateLibTutorialStatus();
+    }
+    if (name === 'metro') { refreshMetroNextBattleHint(); }
+  }
+  function switchSeg(name) {
+    document.querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.seg === name));
+    document.querySelectorAll('.seg-panel').forEach(p => p.classList.toggle('active', p.id === 'seg-' + name));
+  }
+
+  // ----------------------------------------------------------
+  // 24. 起動：イベント結線
+  // ----------------------------------------------------------
+  function runTraining(id) {
+    // 公開 API 後方互換：旧 train ID または新 enemy ID どちらでも動く
+    const aliasToEnemy = { click24: 'yore', stray: 'runo', bar100: 'endu', backbeat: 'push', ladder: 'maze' };
+    const enemyId = aliasToEnemy[id] || id;
+    fightEnemy(enemyId);
+  }
+
+  function bindEvents() {
+    document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+    document.querySelectorAll('.seg-btn').forEach(b => b.addEventListener('click', () => switchSeg(b.dataset.seg)));
+    $('themeBtn').addEventListener('click', toggleTheme);
+    $('setThemeBtn').addEventListener('click', toggleTheme);
+
+    // HOME — 今日の挑戦
+    $('homeFightBtn').addEventListener('click', () => {
+      const id = $('homeFightBtn').dataset.enemy || 'yore';
+      switchTab('dojo'); switchSeg('hunt');
+      const card = document.querySelector('[data-enemy="' + id + '"]');
+      if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    $('homeMorningBtn').addEventListener('click', morningRoutine);
+    $('homeEveningBtn').addEventListener('click', eveningRoutine);
+
+    // METRO
+    $('metroBpmSlider').addEventListener('input', (e) => metroSetBpm(e.target.value));
+    $('metroBpmInput').addEventListener('change', (e) => metroSetBpm(e.target.value));
+    $('metroSig').addEventListener('change', metroBuildBeatDots);
+    $('metroVol').addEventListener('input', (e) => {
+      if (_metroSynth && typeof _metroSynth.setVolume === 'function') {
+        const v = parseInt(e.target.value, 10) / 100;
+        const db = (v > 0) ? (20 * Math.log10(v)) : -60;
+        _metroSynth.setVolume(db);
+      }
+    });
+    $('metroToggleBtn').addEventListener('click', metroToggle);
+
+    // 冒険ルート
+    $('questSaveBtn').addEventListener('click', () => {
+      const text = $('questText').value.trim();
+      if (!text) { showToast('冒険の道筋（目標）を入力してください', 2500); return; }
+      const route = generateQuestRoute(text);
+      lsSet(LS.QUEST_ROUTE, { text, weeks: route.weeks, hint: route.hint, ordered: route.ordered, createdAt: Date.now() });
+      renderQuestRoute();
+      showToast('冒険ルートを生成しました', 3000);
+    });
+
+    // 基礎修行
+    $('rudiToggleBtn').addEventListener('click', rudiToggle);
+
+    // 訓練（タップ）
+    $('tapStartBtn').addEventListener('click', tapStart);
+
+    // 書庫（旧設定）
+    $('setNotifyBtn').addEventListener('click', askNotify);
+    $('setCalibBtn').addEventListener('click', calibrateMic);
+    $('setExportJsonBtn').addEventListener('click', exportJson);
+    $('setExportMdBtn').addEventListener('click', exportMarkdown);
+    $('setImportBtn').addEventListener('click', () => $('setImportFile').click());
+    $('setImportFile').addEventListener('change', (e) => { const f = e.target.files[0]; if (f) importJson(f); });
+    $('setEraseBtn').addEventListener('click', eraseAll);
+
+    // キーボード（1〜5：タブ、Space：メトロ）
+    document.addEventListener('keydown', (e) => {
+      if (e.target.matches('input, textarea, select')) return;
+      const mapping = { '1':'home', '2':'metro', '3':'dojo', '4':'game', '5':'library' };
+      if (mapping[e.key]) { e.preventDefault(); switchTab(mapping[e.key]); return; }
+      if (e.code === 'Space') { e.preventDefault(); metroToggle(); }
+    });
+  }
+
+  // ============================================================
+  // v3.1 連動編 機能群（柱1〜柱7）
+  // ============================================================
+
+  // ----------------------------------------------------------
+  // v3.1 柱1：チュートリアル「修行入門」
+  // ----------------------------------------------------------
+  const TUTORIAL_STEPS = [
+    {
+      title: 'STEADY とは',
+      body: 'あなたのドラムのタイム感を <b>ms 精度</b> で測り、5機能で多角的に鍛える個人修行道具です。<br>修行を続けさせる仕掛けとして「妖怪退治」のゲーム要素を載せています（妖怪は飯野さんバンド名でもあります）。',
+      action: null
+    },
+    {
+      title: 'メトロを鳴らす',
+      body: 'まずは BPM 90 でメトロノームを 4拍鳴らしてみましょう。音量・拍子は METRO タブで調整できます。<div class="ex">クリック後 → METRO タブへ移動して自動 START します。</div>',
+      action: 'metroDemo'
+    },
+    {
+      title: 'マイクを較正する',
+      body: 'マイクの遅延を ms で測って補正します。較正なしでも動きますが、本気で測るなら必須。<br>ブラウザの「マイク許可」を求められます。拒否してもツールは動きます（タップ判定の「訓練」セグへ）。<div class="ex">「較正を始める」を押すと書庫タブの較正機能へ移動します。スキップでもOK。</div>',
+      action: 'calibDemo'
+    },
+    {
+      title: 'Click on 2&4 でクセを測る',
+      body: 'メトロが「2 & 4」だけ鳴る中で、あなたが 1 と 3 を叩く稽古です。<br>あなたが <b>1&3 を強く叩く / 弱く叩く / 早めに / 遅めに</b> 叩くクセが ms 精度で出ます。<div class="ex">「30秒だけ試す」を押すと、よれモン戦が BPM 100・8小節で起動します。</div>',
+      action: 'click24Demo'
+    },
+    {
+      title: 'スコアの読み方',
+      body: '撃破ランクは <b>銅 85 / 銀 90 / 金 95</b>。例えばよれモンなら 銅 85 ＝ 平均誤差 25 ms 以下、銀 90 ＝ 15 ms 以下、金 95 ＝ 8 ms 以下。ms が小さいほど「よれてない」=ジャスト。撃破したら ⭐撃破証 がドロップします。<br><span style="color:var(--muted); font-size:0.9rem;">※ 妖怪ごとに閾値は異なります（書庫の妖怪事典で各妖怪の数値の意味を確認）</span>',
+      action: null
+    },
+    {
+      title: '冒険ルートで 12週計画',
+      body: '3か月後にどうなりたい？を入力すると、5機能の優先順位が並びます。<div class="ex">例：「16分のグルーヴを上げたい BPM160 で安定」と入れると、層界主と押引妖が前半に並びます。<br>「冒険ルートを生成してみる」で道場タブへ移動・例文がプレフィルされます。</div>',
+      action: 'questDemo'
+    },
+    {
+      title: '夜の見廻りで習慣化',
+      body: '1日1セッションで連戦カウントが伸びます。夜寝る前に <b>30秒タップ判定</b> だけでもOK。<br>連戦が伸びると修行記の章が解禁され、⭐が貯まると修行道具がアンロックされます。<br><b>修行入門 卒業 → ⭐ +3 進呈！</b>',
+      action: null
+    }
+  ];
+
+  let _tutorialIdx = 0;
+  function tutorialIsDone() { return lsGet(LS.TUTORIAL_DONE, false) === true; }
+  function tutorialOpen(startIdx) {
+    _tutorialIdx = (typeof startIdx === 'number') ? startIdx : 0;
+    $('tutorialOverlay').classList.add('show');
+    tutorialRender();
+    try { logFeatureUse('tutorial_start'); } catch(_){}
+  }
+  function tutorialClose(complete) {
+    $('tutorialOverlay').classList.remove('show');
+    if (complete === true) {
+      try { logFeatureUse('tutorial_complete'); } catch(_){}
+      if (!tutorialIsDone()) {
+        lsSet(LS.TUTORIAL_DONE, true);
+        addStarDirect(3);
+        addXp(10);
+        showToast('修行入門 卒業！⭐+3 を進呈', 4000);
+        renderHomeStreak(); renderGameMetrics();
+        try { renderLibKaidan(); renderLibTools(); } catch(_){}
+      }
+    }
+    try { updateLibTutorialStatus(); } catch(_){}
+  }
+  function tutorialRender() {
+    const step = TUTORIAL_STEPS[_tutorialIdx];
+    if (!step) { tutorialClose(true); return; }
+    $('tutorialStepNum').textContent = 'Step ' + (_tutorialIdx+1) + ' / ' + TUTORIAL_STEPS.length;
+    $('tutorialTitle').textContent = step.title;
+    $('tutorialBody').innerHTML = step.body;
+    // プログレスピップ
+    const prog = $('tutorialProgress'); prog.innerHTML = '';
+    for (let i = 0; i < TUTORIAL_STEPS.length; i++) {
+      const p = document.createElement('div');
+      p.className = 'pip' + (i <= _tutorialIdx ? ' done' : '');
+      prog.appendChild(p);
+    }
+    // ボタン文言
+    $('tutorialNextBtn').textContent = step.action
+      ? (step.action === 'metroDemo' ? 'メトロで試す' :
+         step.action === 'calibDemo' ? '較正へ移動' :
+         step.action === 'click24Demo' ? '30秒だけ試す' :
+         step.action === 'questDemo' ? '例文プレフィルへ' :
+         '次へ')
+      : (_tutorialIdx === TUTORIAL_STEPS.length - 1 ? '修行入門を卒業（⭐+3）' : '次へ');
+    $('tutorialPrevBtn').disabled = (_tutorialIdx === 0);
+  }
+  function tutorialNext() {
+    const step = TUTORIAL_STEPS[_tutorialIdx];
+    if (step && step.action) {
+      tutorialDoAction(step.action);
+      // アクション実行後はステップを進める
+      _tutorialIdx++;
+      if (_tutorialIdx >= TUTORIAL_STEPS.length) tutorialClose(true);
+      else tutorialRender();
+    } else {
+      _tutorialIdx++;
+      if (_tutorialIdx >= TUTORIAL_STEPS.length) tutorialClose(true);
+      else tutorialRender();
+    }
+  }
+  function tutorialPrev() {
+    if (_tutorialIdx > 0) { _tutorialIdx--; tutorialRender(); }
+  }
+  function tutorialSkip() {
+    // この修行をスキップ → 次へ
+    _tutorialIdx++;
+    if (_tutorialIdx >= TUTORIAL_STEPS.length) tutorialClose(true);
+    else tutorialRender();
+  }
+  function tutorialDoAction(action) {
+    // v3.1.0r1 H3 修正：6秒固定タイマで tutorialOpen を強制再オープンする
+    // 旧動線を廃止。代わりに showToast の onClick で「修行入門に戻る」リンク化
+    // （ユーザー操作中に被ってこない・自分のタイミングで戻れる）
+    const reopenTutorial = () => tutorialOpen(_tutorialIdx);
+    if (action === 'metroDemo') {
+      tutorialClose(false);
+      switchTab('metro');
+      metroSetBpm(90);
+      // ユーザーの操作確認を待つ：自動 START まではしない（ユーザー教育）
+      setTimeout(() => { showToast('メトロタブに来ました。START を押して鳴らしてみてください（タップで修行入門に戻る）', 9000, reopenTutorial); }, 200);
+    } else if (action === 'calibDemo') {
+      tutorialClose(false);
+      switchTab('library');
+      setTimeout(() => {
+        const el = $('setCalibBtn'); if (el) el.scrollIntoView({ behavior:'smooth', block:'center' });
+        showToast('書庫の「較正を開始」を押すか、スキップしてOK（タップで修行入門に戻る）', 9000, reopenTutorial);
+      }, 200);
+    } else if (action === 'click24Demo') {
+      tutorialClose(false);
+      switchTab('dojo'); switchSeg('hunt');
+      setTimeout(() => {
+        const t24 = $('t24Bpm'); if (t24) t24.value = 100;
+        const t24b = $('t24Bars'); if (t24b) t24b.value = 8;
+        const card = document.querySelector('[data-enemy="yore"]');
+        if (card) card.scrollIntoView({ behavior:'smooth', block:'center' });
+        showToast('よれモン戦の入力欄が BPM100/8小節 に設定済み。「戦う」で開始（タップで修行入門に戻る）', 9000, reopenTutorial);
+      }, 250);
+    } else if (action === 'questDemo') {
+      tutorialClose(false);
+      switchTab('dojo'); switchSeg('quest');
+      setTimeout(() => {
+        const ta = $('questText');
+        if (ta && !ta.value) ta.value = '16分のグルーヴを上げたい BPM160 で安定して叩けるようになりたい';
+        ta.scrollIntoView({ behavior:'smooth', block:'center' });
+        showToast('例文プレフィル済み。「道筋を生成」で 12週ルートが出ます（タップで修行入門に戻る）', 9000, reopenTutorial);
+      }, 250);
+    }
+  }
+  function updateLibTutorialStatus() {
+    const el = $('libTutorialStatus'); if (!el) return;
+    el.textContent = tutorialIsDone() ? '✓ 修行入門 卒業済（いつでも再生可）' : '未受講';
+  }
+
+  // ----------------------------------------------------------
+  // v3.1 柱2：機能間連動 — メトロ「これで戦う」
+  // ----------------------------------------------------------
+  function metroSendToBattle() {
+    const bpm = parseInt($('metroBpmInput').value, 10) || 100;
+    const sig = parseInt($('metroSig').value, 10) || 4;
+    lsSet(LS.NEXT_BATTLE_BPM, { bpm, sig, sentAt: Date.now() });
+    $('metroNextBattleHint').textContent = '次回戦闘設定：' + bpm + ' BPM / ' + sig + '拍子（道場の妖怪戦に自動反映）';
+    try { logFeatureUse('metro_to_dojo_link'); } catch(_){}
+    showToast(bpm + ' BPM で次回戦闘を組みました。道場へどうぞ', 3500, () => { switchTab('dojo'); switchSeg('hunt'); });
+  }
+  function refreshMetroNextBattleHint() {
+    const nb = lsGet(LS.NEXT_BATTLE_BPM, null);
+    const el = $('metroNextBattleHint'); if (!el) return;
+    if (nb && typeof nb.bpm === 'number') {
+      el.textContent = '現在の次回戦闘設定：' + nb.bpm + ' BPM / ' + (nb.sig||4) + '拍子';
+    } else {
+      el.textContent = '';
+    }
+  }
+
+  // ----------------------------------------------------------
+  // v3.1 柱3：連戦モード「五体一気駆け」
+  // ----------------------------------------------------------
+  let _ikkiState = null; // { idx, scores[], aborted }
+
+  async function ikkiStart() {
+    if (_ikkiState) { showToast('五体一気駆けは既に進行中です', 2500); return; }
+    if (typeof Tone === 'undefined') { showToast('Tone.js 未ロード', 3000); return; }
+    _ikkiState = { idx: 0, scores: [], aborted: false };
+    try { logFeatureUse('ikki_kake_start'); } catch(_){}
+    showToast('五体一気駆け 開始：30秒戦×5本（休憩10秒）', 3500);
+    // 道場タブの妖怪退治セグへ移動（戦闘オーバーレイがそこから出る前提）
+    switchTab('dojo'); switchSeg('hunt');
+    await new Promise(r => setTimeout(r, 300));
+    for (let i = 0; i < ENEMIES.length; i++) {
+      if (_ikkiState.aborted) break;
+      _ikkiState.idx = i;
+      const e = ENEMIES[i];
+      // 戦闘前の入力欄を 30秒相当に整える（標準 BPM 100 で計算）
+      ikkiSetupForBattle(e.id);
+      // 戦闘実行（既存 trainer をそのまま使い、終わるまで待つ）
+      await ikkiRunBattle(e.id);
+      if (_ikkiState.aborted) break;
+      // 最後の戦闘以外は休憩
+      if (i < ENEMIES.length - 1) await ikkiRest(ENEMIES[i+1]);
+    }
+    if (!_ikkiState.aborted) ikkiFinish();
+    _ikkiState = null;
+  }
+
+  function ikkiSetupForBattle(enemyId) {
+    // v3.1.0r1 D1 修正：renderHuntList → setValue の順に逆転
+    // 旧実装は setValue → renderHuntList の順で、card.innerHTML 再生成で
+    // huntInputs の value="100" 等ハードコード値に上書きされていた（broken-promise）
+    renderHuntList(); // 先に DOM 再生成
+    // 30秒近辺になるように小節数を調整（BPM 100 で 1拍 = 0.6秒・1小節 = 2.4秒）
+    if (enemyId === 'yore')   { $('t24Bpm').value = 100; $('t24Bars').value = 8; }   // 約 19秒
+    if (enemyId === 'runo')   { $('tSrBpm').value = 100; $('tSrCycles').value = 1; } // 約 19秒（1サイクル4小節相当）
+    if (enemyId === 'endu')   { $('tB100Bpm').value = 100; $('tB100Bars').value = 12; } // 約 29秒（短縮版）
+    if (enemyId === 'push')   { $('tBbBpm').value = 100; $('tBbDecl').value = 0; $('tBbBars').value = 8; } // 約 19秒
+    if (enemyId === 'maze')   { $('tLdBpm').value = 100; $('tLdBars').value = 1; }   // 5層×4拍×1小節 ≈ 30秒
+  }
+
+  // ikkiRunBattle：既存 trainer を呼び、battle 完了（applyBattleResult 後）まで待つ
+  function ikkiRunBattle(enemyId) {
+    return new Promise((resolve) => {
+      // applyBattleResult 完了を spy で検知
+      const origApply = applyBattleResult_internal_resolved.fn;
+      applyBattleResult_internal_resolved.fn = (id, score) => {
+        try { origApply && origApply(id, score); } catch(_){}
+        if (id === enemyId) {
+          _ikkiState && _ikkiState.scores.push({ id, score });
+          applyBattleResult_internal_resolved.fn = origApply; // 解除
+          resolve();
+        }
+      };
+      // 戦闘起動
+      fightEnemy(enemyId);
+      // 安全タイムアウト（最大 90秒で次へ）
+      setTimeout(() => {
+        if (applyBattleResult_internal_resolved.fn !== origApply) {
+          applyBattleResult_internal_resolved.fn = origApply;
+          resolve();
+        }
+      }, 90000);
+    });
+  }
+
+  function ikkiRest(nextEnemy) {
+    return new Promise((resolve) => {
+      const ov = $('ikkiRestOverlay');
+      $('ikkiRestStage').textContent = '次は ' + (ENEMIES.findIndex(x => x.id === nextEnemy.id) + 1) + ' / 5';
+      $('ikkiRestSvg').innerHTML = nextEnemy.svg;
+      $('ikkiRestName').textContent = nextEnemy.name;
+      $('ikkiRestTip').textContent = '🪧 ' + (nextEnemy.tip || '');
+      let count = 10;
+      $('ikkiRestCount').textContent = String(count);
+      ov.classList.add('show');
+      const tid = setInterval(() => {
+        if (_ikkiState && _ikkiState.aborted) { clearInterval(tid); ov.classList.remove('show'); resolve(); return; }
+        count--;
+        $('ikkiRestCount').textContent = String(Math.max(0, count));
+        if (count <= 0) { clearInterval(tid); ov.classList.remove('show'); resolve(); }
+      }, 1000);
+    });
+  }
+
+  function ikkiAbort() {
+    if (!_ikkiState) return;
+    _ikkiState.aborted = true;
+    $('ikkiRestOverlay').classList.remove('show');
+    if (_dojoStop) try { _dojoStop(); } catch(_){}
+    showToast('五体一気駆けを中断しました', 3000);
+  }
+
+  function ikkiFinish() {
+    if (!_ikkiState) return;
+    try { logFeatureUse('ikki_kake_complete'); } catch(_){}
+    const scores = _ikkiState.scores;
+    if (scores.length === 0) { showToast('五体一気駆け：1戦も完了せず', 3500); return; }
+    const avg = scores.reduce((a,c) => a + (c.score||0), 0) / scores.length;
+    const defeated = scores.filter(s => {
+      const e = ENEMY_BY_ID[s.id]; return e && s.score >= e.bronze;
+    }).length;
+    // 記録更新
+    const rec = lsGet(LS.IKKI_RECORD, { best: 0, totalDefeats: 0, achievedAt: 0 });
+    if (avg > rec.best) rec.best = Math.round(avg);
+    rec.totalDefeats = (rec.totalDefeats || 0) + defeated;
+    if (defeated === ENEMIES.length && !rec.achievedAt) {
+      rec.achievedAt = Date.now();
+      addXp(20);
+      showToast('五体一気駆け 達成者の称号を獲得！+20 XP', 4500);
+    }
+    lsSet(LS.IKKI_RECORD, rec);
+    showToast('五体一気駆け 完了：総合スコア ' + avg.toFixed(1) + ' / 撃破 ' + defeated + ' 体', 5500);
+    renderHomeIkkiRecord(); renderLibIkkiSummary();
+  }
+
+  // applyBattleResult を spy できるように内部リフ
+  const applyBattleResult_internal_resolved = { fn: null };
+  const _origApplyBattleResult = applyBattleResult;
+  applyBattleResult = function(enemyId, score) {
+    _origApplyBattleResult(enemyId, score);
+    // v3.1.1 B6：道場戦結果が記録された＝今後 metro が更新情報を読む準備が整う（dojo→metro データ流動）
+    try { logFeatureUse('dojo_to_metro_link'); } catch(_){}
+    if (applyBattleResult_internal_resolved.fn) try { applyBattleResult_internal_resolved.fn(enemyId, score); } catch(_){}
+  };
+
+  function renderHomeIkkiRecord() {
+    const el = $('homeIkkiRecord'); if (!el) return;
+    const rec = lsGet(LS.IKKI_RECORD, null);
+    if (!rec || !rec.best) { el.textContent = ''; return; }
+    el.textContent = '最高総合スコア ' + rec.best + ' ／ 累計撃破 ' + (rec.totalDefeats||0) + ' 体' + (rec.achievedAt ? ' ／ ✓ 五体一気駆け 達成者' : '');
+  }
+  function renderLibIkkiSummary() {
+    const el = $('libIkkiSummary'); if (!el) return;
+    const rec = lsGet(LS.IKKI_RECORD, null);
+    if (!rec || !rec.best) { el.textContent = '未挑戦'; return; }
+    el.innerHTML = '最高総合スコア <b>' + rec.best + '</b> ／ 累計撃破 ' + (rec.totalDefeats||0) + ' 体' + (rec.achievedAt ? '<br>✓ 五体一気駆け 達成者（' + new Date(rec.achievedAt).toLocaleDateString() + '）' : '');
+  }
+
+  // ----------------------------------------------------------
+  // v3.1 柱4：相性図描画
+  // ----------------------------------------------------------
+  function renderLibAffinity() {
+    const box = $('libAffinityGrid'); if (!box) return;
+    try { logFeatureUse('weakness_view'); } catch(_){}
+    box.innerHTML = '';
+    ENEMIES.forEach(e => {
+      const target = ENEMY_BY_ID[e.weakness];
+      if (!target) return;
+      const row = document.createElement('div');
+      row.className = 'affinity-row';
+      row.innerHTML = `
+        <div class="enemy-svg" style="flex:0 0 40px;">${e.svg}</div>
+        <div style="flex:1 1 auto;">
+          <div><b>${e.name}</b> <span class="arr">→ 弱点：</span><b>${target.name}</b></div>
+          <div class="muted-text small">${e.weaknessReason}</div>
+        </div>
+      `;
+      // 60×60 SVG を縮小
+      const svg = row.querySelector('svg');
+      if (svg) { svg.setAttribute('width','40'); svg.setAttribute('height','40'); }
+      box.appendChild(row);
+    });
+  }
+
+  // ----------------------------------------------------------
+  // v3.1 柱5：撃破証⭐の使い道「修行道具」
+  // ----------------------------------------------------------
+  const TOOLS = [
+    { id: 'mokugyo',    name: 'メトロ音色：木魚',     ico: '🪵', cost: 3,  kind: 'sound', desc: 'メトロのクリック音が木魚風に変わる（落ち着き重視）' },
+    { id: 'taiko',      name: 'メトロ音色：太鼓',     ico: '🥁', cost: 5,  kind: 'sound', desc: 'メトロのクリック音が太鼓風（迫力重視）' },
+    { id: 'hanafubuki', name: '撃破演出：花吹雪',     ico: '🌸', cost: 10, kind: 'fx',    desc: '撃破時に花弁が舞う（華やかさ）' },
+    { id: 'inazuma',    name: '撃破演出：稲妻',       ico: '⚡', cost: 20, kind: 'fx',    desc: '撃破時に稲妻が走る（爽快さ）' },
+    { id: 'sokkyou',    name: '秘伝：即興モード',     ico: '🎭', cost: 50, kind: 'mode',  desc: 'メトロが BPM ランダム揺らぎモードに（±8 BPM・上級者向け）' }
+  ];
+
+  function checkToolUnlocks() {
+    const stars = (loadGame() || {}).starCount || 0;
+    const u = lsGet(LS.UNLOCKED_TOOLS, {}) || {};
+    let newlyUnlocked = [];
+    TOOLS.forEach(t => {
+      if (!u[t.id] && stars >= t.cost) { u[t.id] = true; newlyUnlocked.push(t); }
+    });
+    if (newlyUnlocked.length > 0) {
+      lsSet(LS.UNLOCKED_TOOLS, u);
+      newlyUnlocked.forEach(t => {
+        try { logFeatureUse('tool_unlock'); } catch(_){}
+        showToast('🆕 修行道具アンロック：' + t.name + '（書庫から装備）', 4500);
+      });
+      try { renderLibTools(); } catch(_){}
+    }
+  }
+
+  function renderLibTools() {
+    const box = $('libToolsList'); if (!box) return;
+    const stars = (loadGame() || {}).starCount || 0;
+    const u = lsGet(LS.UNLOCKED_TOOLS, {}) || {};
+    const curSound = lsGet(LS.METRO_SOUND, 'default');
+    const curFx = lsGet(LS.FX_DEFEAT, 'default');
+    const curMode = lsGet(LS.SOKKYOU, false) === true;
+    box.innerHTML = '';
+    // 現在の装備状況サマリ
+    const head = document.createElement('div');
+    head.className = 'muted-text small';
+    head.style.marginBottom = '6px';
+    head.innerHTML = '⭐ 残高 <b>' + stars + '</b> ／ 装備中：音色=' + curSound + '・撃破演出=' + curFx + (curMode ? '・即興モードON' : '');
+    box.appendChild(head);
+    TOOLS.forEach(t => {
+      const unlocked = !!u[t.id];
+      const equipped = (t.kind === 'sound' && curSound === t.id) ||
+                       (t.kind === 'fx' && curFx === t.id) ||
+                       (t.kind === 'mode' && curMode);
+      const stateLbl = equipped ? '装備中' : (unlocked ? '開放済' : '未開放');
+      const stateCls = equipped ? 'equipped' : (unlocked ? 'unlocked' : 'locked');
+      const row = document.createElement('div');
+      row.className = 'tool-row';
+      row.innerHTML = `
+        <div class="ico">${t.ico}</div>
+        <div class="meta">
+          <div class="name">${t.name}</div>
+          <div class="req">⭐${t.cost} で開放 ／ ${t.desc}</div>
+        </div>
+        <span class="state ${stateCls}">${stateLbl}</span>
+      `;
+      // 操作ボタン
+      if (unlocked) {
+        const btn = document.createElement('button');
+        if (t.kind === 'mode') {
+          btn.textContent = curMode ? 'OFF にする' : 'ON にする';
+          btn.addEventListener('click', () => {
+            lsSet(LS.SOKKYOU, !curMode);
+            try { logFeatureUse('tool_use'); } catch(_){}
+            showToast('即興モード：' + (!curMode ? 'ON' : 'OFF'), 2500);
+            renderLibTools();
+          });
+        } else {
+          btn.textContent = equipped ? '解除' : '装備';
+          btn.addEventListener('click', () => {
+            if (t.kind === 'sound') {
+              // v3.1.1：解除時の base は 'click'（旧 'default' から名称変更）
+              lsSet(LS.METRO_SOUND, equipped ? 'click' : t.id);
+              // 動作中の synth を破棄して次回 toggle で新音色をロード
+              if (_metroSynth) { try { _metroSynth.dispose && _metroSynth.dispose(); } catch(_){} _metroSynth = null; }
+              const sel = $('setClickSound'); if (sel) sel.value = equipped ? 'click' : t.id;
+            } else if (t.kind === 'fx') {
+              lsSet(LS.FX_DEFEAT, equipped ? 'default' : t.id);
+            }
+            try { logFeatureUse('tool_use'); } catch(_){}
+            showToast(equipped ? (t.name + ' を解除') : (t.name + ' を装備'), 2500);
+            renderLibTools();
+          });
+        }
+        row.appendChild(btn);
+      }
+      box.appendChild(row);
+    });
+  }
+
+  // ----------------------------------------------------------
+  // v3.1 柱6：「修行記」段階解禁
+  // ----------------------------------------------------------
+  const KAIDAN = [
+    { ch: 1,   days: 1,   text: '初日。メトロの鼓動に手を合わせた。最初の妖怪は「揺らぎ」。1拍3拍に居るらしい。' },
+    { ch: 2,   days: 3,   text: '3日目。1&3 のクセが見えた。次は 2&4 を主役に置いてみる。' },
+    { ch: 3,   days: 7,   text: '1週間。手首が覚え始める。腕の力が抜けて、音だけが残る感覚。' },
+    { ch: 4,   days: 14,  text: '2週間。100小節通せた日があった。終盤の集中が鍵。持久龍が薄く笑った気がする。' },
+    { ch: 5,   days: 30,  text: '1か月。バックビートを動かすコツが掴めてきた。押引妖はもう怖くない。' },
+    { ch: 6,   days: 100, text: '100日。5階層の迷宮を抜けた。タイム感は身体に書き込まれている。' }
+  ];
+
+  function renderLibKaidan() {
+    const box = $('libKaidanList'); if (!box) return;
+    try { logFeatureUse('journal_view'); } catch(_){}
+    box.innerHTML = '';
+    const streak = calcStreak(loadLogs());
+    KAIDAN.forEach(k => {
+      const unlocked = streak >= k.days;
+      const row = document.createElement('div');
+      row.className = 'kaidan-row' + (unlocked ? '' : ' locked');
+      row.innerHTML = `
+        <div class="ch">第${k.ch}章 ／ 連戦 ${k.days} 日 ${unlocked ? '✓ 解禁' : '— 未解禁'}</div>
+        <div class="body">${unlocked ? k.text : '???'}</div>
+      `;
+      box.appendChild(row);
+    });
+  }
+
+  // ----------------------------------------------------------
+  // v3.1 柱7：統計画面「あなたのクセ推移」
+  // ----------------------------------------------------------
+  let _kuseChartInst = null;
+  function renderLibKuse() {
+    const cv = $('libKuseChart'); if (!cv) return;
+    try { logFeatureUse('kuse_chart_view'); } catch(_){}
+    const sum = $('libKuseSummary');
+    if (typeof Chart === 'undefined') { if (sum) sum.textContent = 'Chart.js 未ロード'; return; }
+    const ek = lsGet(LS.ENEMY_KPI, {}) || {};
+    // 各妖怪の meanMs 推移を1本ずつ折れ線
+    const colors = ['#7c6af7','#dc2626','#16a34a','#0891b2','#ea580c'];
+    const datasets = [];
+    let totalCount = 0;
+    ENEMIES.forEach((e, i) => {
+      const arr = (ek[e.id] || []).filter(x => typeof x.meanMs === 'number');
+      totalCount += arr.length;
+      if (arr.length === 0) return;
+      datasets.push({
+        label: e.name,
+        data: arr.map((x, idx) => ({ x: idx+1, y: x.meanMs })),
+        borderColor: colors[i % colors.length],
+        backgroundColor: colors[i % colors.length] + '33',
+        tension: 0.2,
+        pointRadius: 2
+      });
+    });
+    if (datasets.length === 0) {
+      if (sum) sum.textContent = '履歴なし — 妖怪戦を1戦すると平均誤差(ms) が記録されます';
+      if (_kuseChartInst) { _kuseChartInst.destroy(); _kuseChartInst = null; }
+      return;
+    }
+    if (_kuseChartInst) _kuseChartInst.destroy();
+    _kuseChartInst = new Chart(cv.getContext('2d'), {
+      type: 'line',
+      data: { datasets },
+      options: {
+        responsive: true,
+        scales: {
+          x: { type: 'linear', title: { display: true, text: 'セッション #（直近30まで）' } },
+          y: { title: { display: true, text: '平均誤差 (ms)' }, suggestedMin: -30, suggestedMax: 30 }
+        },
+        plugins: { legend: { position: 'bottom' } }
+      }
+    });
+    // クセ TOP3
+    if (sum) {
+      const top3 = computeKuseTop3(ek);
+      sum.innerHTML = '<b>あなたの今のクセ TOP3（最近5戦）</b><ul>' + top3.map(t => '<li>' + t + '</li>').join('') + '</ul>';
+    }
+  }
+
+  function computeKuseTop3(ek) {
+    const items = [];
+    ENEMIES.forEach(e => {
+      const arr = (ek[e.id] || []).slice(-5).filter(x => typeof x.meanMs === 'number');
+      if (arr.length === 0) return;
+      const meanMs = arr.reduce((a,c) => a + c.meanMs, 0) / arr.length;
+      const sd = arr.reduce((a,c) => a + (typeof c.sd === 'number' ? c.sd : 0), 0) / arr.length;
+      let label = '';
+      const dir = meanMs > 2 ? '後ろ' : (meanMs < -2 ? '前' : 'ほぼジャスト');
+      label = e.name + ' 戦：平均誤差 ' + meanMs.toFixed(1) + ' ms（' + dir + '寄り）／ SD ' + sd.toFixed(1) + ' ms';
+      items.push({ label, abs: Math.abs(meanMs) + sd });
+    });
+    items.sort((a,b) => b.abs - a.abs);
+    return items.slice(0, 3).map(x => x.label);
+  }
+
+  // ----------------------------------------------------------
+  // v3.1 撃破演出フック（既存 showDefeatAnim を拡張）
+  // ----------------------------------------------------------
+  const _origShowDefeatAnim = showDefeatAnim;
+  showDefeatAnim = function(enemyId, rank, stars) {
+    _origShowDefeatAnim(enemyId, rank, stars);
+    const fx = lsGet(LS.FX_DEFEAT, 'default');
+    if (fx === 'hanafubuki') spawnPetals(18);
+    else if (fx === 'inazuma') spawnBolt();
+  };
+  function spawnPetals(n) {
+    const symbols = ['🌸','🌸','🌸','✿','❀'];
+    for (let i = 0; i < n; i++) {
+      const p = document.createElement('div');
+      p.className = 'fx-petal';
+      p.style.left = Math.random() * 100 + 'vw';
+      p.style.top = '-30px';
+      p.textContent = symbols[i % symbols.length];
+      p.style.animationDelay = (Math.random() * 200) + 'ms';
+      document.body.appendChild(p);
+      setTimeout(() => { try { p.remove(); } catch(_){} }, 1500);
+    }
+  }
+  function spawnBolt() {
+    const b = document.createElement('div');
+    b.className = 'fx-bolt';
+    document.body.appendChild(b);
+    setTimeout(() => { try { b.remove(); } catch(_){} }, 420);
+  }
+
+  // ----------------------------------------------------------
+  // v3.1.1 メトロ音色：click(default,NoiseSynth+BPF) / cowbell(MetalSynth) / mokugyo / taiko(MembraneSynth)
+  // 戻り値共通 IF: { trigger(note,dur), setVolume(db), dispose(), kind }
+  // ----------------------------------------------------------
+  function buildClickSynth(soundType) {
+    if (typeof Tone === 'undefined') return null;
+    let t = soundType || lsGet(LS.METRO_SOUND, 'click');
+    if (t === 'default') t = 'click'; // v3.1.0以前との後方互換
+    if (t === 'cowbell') {
+      const m = new Tone.MetalSynth({ envelope: { attack: 0.001, decay: 0.05, release: 0.01 }, harmonicity: 5.1, modulationIndex: 32, resonance: 4000, octaves: 1.5 }).toDestination();
+      return { kind:'cowbell',
+        trigger:(n,d)=>{ try{ m.triggerAttackRelease(n||'C5', d||'32n'); }catch(_){} },
+        setVolume:(db)=>{ try{ m.volume.value = db; }catch(_){} },
+        dispose:()=>{ try{ m.dispose(); }catch(_){} } };
+    }
+    if (t === 'mokugyo' || t === 'taiko') {
+      const opts = (t === 'mokugyo')
+        ? { pitchDecay: 0.005, octaves: 2, oscillator: { type: 'sine' }, envelope: { attack: 0.001, decay: 0.08, sustain: 0, release: 0.05 } }
+        : { pitchDecay: 0.05, octaves: 6, oscillator: { type: 'sine' }, envelope: { attack: 0.001, decay: 0.4, sustain: 0, release: 0.1 } };
+      const k = new Tone.MembraneSynth(opts).toDestination();
+      return { kind:t,
+        trigger:(n,d)=>{ try{ k.triggerAttackRelease(n||'C3', d||'32n'); }catch(_){} },
+        setVolume:(db)=>{ try{ k.volume.value = db; }catch(_){} },
+        dispose:()=>{ try{ k.dispose(); }catch(_){} } };
+    }
+    // click（default・業界標準 Klopfgeist 型・NoiseSynth + BandPassFilter）
+    const noise = new Tone.NoiseSynth({ noise: { type:'white' }, envelope: { attack: 0.001, decay: 0.02, sustain: 0, release: 0.01 } });
+    const bpf = new Tone.Filter({ type: 'bandpass', frequency: 4000, Q: 4 });
+    noise.connect(bpf); bpf.toDestination();
+    return { kind:'click',
+      trigger:(n,d)=>{ try{ noise.triggerAttackRelease(d||'32n'); }catch(_){} }, // NoiseSynth は音高なし
+      setVolume:(db)=>{ try{ noise.volume.value = db; }catch(_){} },
+      dispose:()=>{ try{ noise.dispose(); bpf.dispose(); }catch(_){} } };
+  }
+
+  // 既存 metroToggle の Tone.MembraneSynth 生成箇所を差し替えるため、metroToggle をラップ
+  const _origMetroToggle = metroToggle;
+  metroToggle = async function() {
+    if (_metroRunning) { metroStop(); return; }
+    // B1 AudioContext 復帰（iOS Safari suspended → resume）
+    const ok = await ensureAudioContext(() => { try { metroStop(); } catch(_){} showToast('オーディオ中断。再度タップで再開', 3000); });
+    if (!ok) return;
+    // B2 silent switch 警告（iOS 1回限り）
+    checkSilentSwitchWarn();
+    // 即興モード ON なら BPM をランダム揺らぎ
+    if (lsGet(LS.SOKKYOU, false) === true) {
+      const base = parseInt($('metroBpmInput').value, 10) || 100;
+      const jitter = Math.floor(Math.random() * 17) - 8; // ±8 BPM
+      metroSetBpm(Math.max(40, Math.min(240, base + jitter)));
+    }
+    // シンセを音色設定で生成
+    if (typeof Tone !== 'undefined' && _metroSynth) {
+      try { (_metroSynth.dispose ? _metroSynth.dispose() : null); } catch(_){}
+      _metroSynth = null;
+    }
+    if (!_metroSynth) _metroSynth = buildClickSynth();
+    return _origMetroToggle();
+  };
+
+  // ----------------------------------------------------------
+  // v3.1 チュートリアル：イベント結線（boot 内 bindEvents の追記）
+  // ----------------------------------------------------------
+  function bindV3_1Events() {
+    // チュートリアル
+    $('tutorialNextBtn').addEventListener('click', tutorialNext);
+    $('tutorialPrevBtn').addEventListener('click', tutorialPrev);
+    $('tutorialSkipBtn').addEventListener('click', tutorialSkip);
+    $('tutorialQuitBtn').addEventListener('click', () => tutorialClose(false));
+    $('libTutorialBtn').addEventListener('click', () => tutorialOpen(0));
+    // メトロ「これで戦う」
+    $('metroSendBattleBtn').addEventListener('click', metroSendToBattle);
+    // 五体一気駆け
+    $('homeIkkiBtn').addEventListener('click', ikkiStart);
+    $('ikkiAbortBtn').addEventListener('click', ikkiAbort);
+    // v3.1.1 クリック音セレクタ＋試聴
+    const clickSel = $('setClickSound'), clickStatus = $('setClickSoundStatus');
+    if (clickSel) {
+      let cur = lsGet(LS.METRO_SOUND, 'click'); if (cur === 'default') cur = 'click';
+      clickSel.value = cur;
+      clickSel.addEventListener('change', () => {
+        const v = clickSel.value; lsSet(LS.METRO_SOUND, v);
+        if (clickStatus) clickStatus.textContent = '音色を変更：' + v + '（次回 START から反映）';
+        if (_metroSynth) { try { _metroSynth.dispose && _metroSynth.dispose(); } catch(_){} _metroSynth = null; }
+        try { renderLibTools(); } catch(_){}
+      });
+    }
+    const previewBtn = $('setClickSoundPreview');
+    if (previewBtn) previewBtn.addEventListener('click', async () => {
+      if (typeof Tone === 'undefined') { showToast('Tone.js 未ロード', 2500); return; }
+      if (!(await ensureAudioContext())) return;
+      await Tone.start();
+      const tmp = buildClickSynth(clickSel ? clickSel.value : null); if (!tmp) return;
+      tmp.trigger('C4', '32n');
+      [250,500,750].forEach(ms => setTimeout(() => tmp.trigger('C3','32n'), ms));
+      setTimeout(() => { try { tmp.dispose(); } catch(_){} }, 1200);
+    });
+  }
+
+  // ----------------------------------------------------------
+  // 25. 公開 API（UI動線必須）
+  // ----------------------------------------------------------
+  window.__steadyV2 = {
+    addXp, addStar, loadGame, saveGame, calcLevel,
+    calibrateMic, exportJson, exportMarkdown,
+    runTraining, switchTab,
+    // v3 新設（UI動線：HOME⚔・道場⚔／撃破図鑑）
+    fightEnemy, applyBattleResult, generateQuestRoute, streakTitle,
+    // v3.1 新設（UI動線：書庫の修行入門ボタン・HOME 五体一気駆けボタン・METRO「これで戦う」）
+    tutorialOpen, ikkiStart, metroSendToBattle, checkToolUnlocks
+  };
+
+  // ----------------------------------------------------------
+  // 26. boot
+  // ----------------------------------------------------------
+  function boot() {
+    applyTheme();
+    bindEvents();
+    bindV3_1Events();
+    metroBuildBeatDots();
+    metroSetBpm(100);
+    renderHome();
+    renderHomeStreak();
+    renderHomeIkkiRecord();
+    renderGameMetrics();
+    renderHuntList();
+    renderDexList();
+    renderQuestRoute();
+    renderLibDex();
+    renderLibAffinity();
+    renderLibKaidan();
+    renderLibIkkiSummary();
+    renderLibKuse();
+    renderLibTools();
+    refreshMetroNextBattleHint();
+    updateLibTutorialStatus();
+    updateNotifyStatus();
+
+    // v3.1：初回起動でチュートリアル自動起動
+    if (!tutorialIsDone()) {
+      setTimeout(() => { tutorialOpen(0); }, 600);
+    }
+
+    const off = lsGet(LS.MIC_OFFSET, null);
+    if (off && typeof off.offsetMs === 'number') {
+      $('setCalibStatus').textContent = '較正済み：オフセット ' + off.offsetMs.toFixed(1) + ' ms';
+    }
+
+    // SW 登録（v3.1.1 にバンプ）
+    try {
+      if ('serviceWorker' in navigator) {
+        const swCode = `
+          const CACHE = 'steady-v3.1.1';
+          const URLS = ['./', './steady.html', './vendor/tone.js', './vendor/chart.js'];
+          self.addEventListener('install', (e) => {
+            e.waitUntil(caches.open(CACHE).then(c => c.addAll(URLS).catch(()=>{})));
+            self.skipWaiting();
+          });
+          self.addEventListener('activate', (e) => {
+            e.waitUntil(caches.keys().then(keys => Promise.all(
+              keys.filter(k => k !== CACHE && k.startsWith('steady-')).map(k => caches.delete(k))
+            )).then(() => self.clients.claim()));
+          });
+          self.addEventListener('fetch', (e) => {
+            const req = e.request;
+            if (req.method !== 'GET') return;
+            const isNav = req.mode === 'navigate';
+            const isCached = URLS.some(u => req.url === u || req.url.endsWith(u.replace('./', '/')));
+            if (isNav || isCached) {
+              e.respondWith(caches.match(req).then(cached => cached || fetch(req).then(res => {
+                const clone = res.clone();
+                caches.open(CACHE).then(c => c.put(req, clone)).catch(()=>{});
+                return res;
+              }).catch(()=>cached || caches.match('./steady.html'))));
+            }
+          });
+        `;
+        const blob = new Blob([swCode], { type: 'application/javascript' });
+        const swUrl = URL.createObjectURL(blob) + '?v=3.1.1';
+        navigator.serviceWorker.register(swUrl).catch(err => { if (window.STEADY_DEBUG) console.warn('SW register failed:', err); });
+      }
+    } catch (_) { /* noop */ }
+
+    if (window.STEADY_DEBUG) console.log('STEADY DOJO QUEST v3.1.1 r1 ready (hotfix：クリック音 NoiseSynth+BPF default化・iOS AudioContext復帰・silent switch検知・dispose横展開・使用ログ計測／r1：metroVol setVolume修正)');
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+
+</body>
+</html>

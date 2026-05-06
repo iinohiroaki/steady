@@ -1,0 +1,65 @@
+{
+  "name": "STEADY DOJO QUEST",
+  "short_name": "STEADY",
+  "description": "emo lab で 8 patterns を Stage 0→3 で進める。Wave 2 Midwest emo bedroom recording 系の自分の演奏を磨く PWA。",
+  "start_url": "./steady-core.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1a1a2e",
+  "theme_color": "#1a1a2e",
+  "lang": "ja",
+  "categories": ["music", "education", "productivity"],
+  "icons": [
+    {
+      "src": "./steady-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./steady-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    },
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "emo lab（8 patterns）",
+      "short_name": "emo lab",
+      "description": "Phase 1 8 patterns を Stage 0→3 で進める",
+      "url": "./steady-core.html#emolab"
+    },
+    {
+      "name": "ホーム",
+      "short_name": "Home",
+      "description": "今日の挑戦・戦績",
+      "url": "./steady-core.html"
+    },
+    {
+      "name": "ゲーム",
+      "short_name": "Game",
+      "description": "戦績・図鑑",
+      "url": "./steady-game.html"
+    },
+    {
+      "name": "耳訓練",
+      "short_name": "Ear",
+      "description": "A/B 比較ゲーム",
+      "url": "./steady-ear.html"
+    }
+  ]
+}

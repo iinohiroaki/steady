@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#5b4ad9">
+<title>STEADY — ページが見つかりません (404)</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="./steady-icon.svg">
+<style>
+  /* UX-12 fallback：steady-shared.css 不在環境でも単独表示できるよう全 inline */
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    color: #f5f5f7;
+    background: linear-gradient(135deg, #5b4ad9 0%, #7c6af7 50%, #a591ff 100%);
+    -webkit-text-size-adjust: 100%;
+  }
+  .wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px;
+    text-align: center;
+  }
+  .code {
+    font-size: clamp(72px, 18vw, 144px);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    margin: 0 0 12px;
+    text-shadow: 0 4px 24px rgba(0, 0, 0, 0.18);
+  }
+  .title {
+    font-size: clamp(20px, 4.5vw, 28px);
+    font-weight: 700;
+    margin: 0 0 8px;
+  }
+  .lead {
+    font-size: clamp(14px, 3.2vw, 16px);
+    color: rgba(245, 245, 247, 0.85);
+    max-width: 480px;
+    line-height: 1.7;
+    margin: 0 0 28px;
+  }
+  .actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 22px;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-decoration: none;
+    border: 1px solid transparent;
+    transition: transform 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+                background 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+  }
+  .btn-primary {
+    background: #ffffff;
+    color: #5b4ad9;
+  }
+  .btn-primary:hover { transform: translateY(-1px); background: #f3f0ff; }
+  .btn-secondary {
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.45);
+  }
+  .btn-secondary:hover { background: rgba(255, 255, 255, 0.22); }
+  .meta {
+    margin-top: 36px;
+    font-size: 0.78rem;
+    color: rgba(245, 245, 247, 0.6);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .btn { transition: none; }
+    .btn-primary:hover { transform: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="code" aria-hidden="true">404</p>
+  <h1 class="title">ページが見つかりません</h1>
+  <p class="lead">
+    お探しのページは存在しないか、移動した可能性があります。<br>
+    オフライン中の場合は、ネットワーク復帰後にもう一度お試しください。
+  </p>
+  <div class="actions">
+    <a class="btn btn-primary" href="./steady-core.html">HOME へ戻る</a>
+    <a class="btn btn-secondary" href="./steady-game.html">GAME へ</a>
+    <a class="btn btn-secondary" href="./steady-ear.html">耳訓練へ</a>
+  </div>
+  <div class="meta">STEADY v3.2.0r2 — UX-12 fallback</div>
+</div>
+</body>
+</html>

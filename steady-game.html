@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#7c6af7">
+<title>STEADY DOJO QUEST — GAME / 書庫（v3.2.0r2）</title>
+
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="STEADY">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="apple-touch-icon" sizes="192x192" href="./icon-192.png">
+<link rel="apple-touch-icon" sizes="512x512" href="./icon-512.png">
+<link rel="icon" type="image/svg+xml" href="./steady-icon.svg">
+
+<link rel="stylesheet" href="./steady-shared.css">
+
+<script src="./vendor/tone.js"></script>
+<script src="./vendor/chart.js"></script>
+<script src="./steady-shared.js"></script>
+
+<style>
+  .game-hero { text-align:center; padding: 24px 16px 8px; }
+  .game-hero h2 { margin: 0 0 6px; font-size: 1.3rem; font-weight: 700; }
+  .game-hero p { margin: 0; color: var(--muted); font-size: 0.92rem; }
+  .placeholder-card {
+    border: 1px dashed var(--border);
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+  .placeholder-card strong { color: var(--text); }
+  .legacy-bridge {
+    margin: 16px 0;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1.5px solid var(--accent);
+    border-radius: 12px;
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div>
+      <h1>STEADY <span class="sub">v3.2.0r2 — game (GAME / 書庫)</span></h1>
+    </div>
+    <button class="theme-btn" id="themeBtn" type="button">light/dark</button>
+  </div>
+  <nav class="tabs" role="tablist" aria-label="GAME 機能">
+    <button class="tab-btn active" data-tab="game" role="tab">GAME</button>
+    <button class="tab-btn" data-tab="library" role="tab">書庫</button>
+  </nav>
+</header>
+
+<main>
+  <!-- B8 Run 7（UX-11）：14 日連続未使用 警告バナー -->
+  <div class="stale-warn-banner" id="staleWarnBanner" role="alert" aria-live="polite"></div>
+
+  <!-- =====================================================
+       GAME タブ
+       ===================================================== -->
+  <section id="tab-game" class="tab-panel active" role="tabpanel">
+    <div class="game-hero">
+      <h2>GAME</h2>
+      <p>戦績・図鑑・推移チャート（v3.2.0r2 骨格）</p>
+    </div>
+
+    <div class="legacy-bridge">
+      <div class="card-title">v3.0.1 PASS（参照実装）</div>
+      <div class="muted-text small">
+        GAME の戦績・図鑑・チャート機能は v3.0.1 既存実装が現行最新。Phase 1 各ブロックで段階移植。
+        LS データは migration 済（_v3_2 サフィックス併用）で互換維持。
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <a class="btn-secondary" href="./steady.html">v3.0.1 PASS を開く</a>
+      </div>
+    </div>
+
+    <!-- v3.2.0r2 block8-h5：Phase D ゲーム実装（オートバトル＋3軸＋ドラム神話系） -->
+    <!-- UI は steady-game.js が #tab-game へ自動注入する -->
+
+    <!--
+      v3.3.0 SS-3：週替り挑戦システム
+      - JS 未ロード時の SEO/可視フォールバック用ノード（ID 整合は steady-game.js renderWeeklyChallenge() と一致）
+      - JS が ensureUI() で同 ID の要素を上書き注入するため、本ノードは静的レイアウトの保険
+    -->
+    <noscript>
+      <div class="card-primary game-section weekly-challenge-card">
+        <div class="weekly-challenge-panel">
+          <div class="weekly-head">
+            <span class="weekly-label">今週の挑戦</span>
+            <span class="weekly-multi-badge">×3 倍報酬</span>
+          </div>
+          <div class="muted-text small">
+            JavaScript を有効にすると、毎週月曜 0:00（JST）更新の特別な挑戦相手と、通常の 3 倍報酬が解禁されます。
+          </div>
+        </div>
+      </div>
+    </noscript>
+  </section>
+
+  <!-- =====================================================
+       書庫タブ
+       ===================================================== -->
+  <section id="tab-library" class="tab-panel" role="tabpanel">
+    <div class="game-hero">
+      <h2>書庫</h2>
+      <p>修行記・練習用具・チュートリアル・設定（v3.2.0r2 骨格）</p>
+    </div>
+
+    <div class="placeholder-card">
+      <div class="card-title">修行記（行動ログ）</div>
+      <div>v3.0.1 既存実装あり（steady.html 書庫タブ）／持ち込み実験ログ（B14・C4=A により v3.3.0 送り）</div>
+    </div>
+
+    <div class="placeholder-card">
+      <div class="card-title">練習用具</div>
+      <div>v3.0.1 既存実装あり（解禁ツール一覧）</div>
+    </div>
+
+    <div class="placeholder-card">
+      <div class="card-title">相性図・階段</div>
+      <div>v3.0.1 既存実装あり</div>
+    </div>
+
+    <!-- 設定（共通項目・書庫経由でも JSON バックアップにアクセス可・AL012 NEW-6: core と 4 項目に統一） -->
+    <div class="card-secondary">
+      <div class="card-title">設定 / バックアップ</div>
+      <div class="backup-summary" id="backupSummary">
+        <div><dt>保存中の項目</dt><dd id="sumCount">—</dd></div>
+        <div><dt>容量（概算）</dt><dd id="sumBytes">—</dd></div>
+        <div><dt>最終バックアップ</dt><dd id="sumLastExport">—</dd></div>
+        <div><dt>ホーム画面起動</dt><dd id="sumStandalone">—</dd></div>
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <button class="btn-primary" id="exportBackupBtn" type="button">JSON バックアップ書き出し</button>
+        <button class="btn-secondary" id="estStorageBtn" type="button">ストレージ実測</button>
+      </div>
+      <div class="muted-text small" id="storageEstResult" style="margin-top:6px;"></div>
+    </div>
+  </section>
+</main>
+
+<nav class="float-nav" aria-label="STEADY 主要画面">
+  <a href="./steady-core.html" data-html="core">core</a>
+  <a href="./steady-game.html" data-html="game">game</a>
+  <a href="./steady-ear.html" data-html="ear">ear</a>
+</nav>
+
+<!-- B8 Run 7：UX-11 stale warn 判定で SteadyUseLog が必要 -->
+<script src="./steady-use-log.js"></script>
+<!-- v3.2.0r2 block8-h5：Phase D ゲーム実装（AutoBattle / Gacha / Equipment / Titles / Prestige） -->
+<script src="./steady-game.js"></script>
+<script>
+(function () {
+  'use strict';
+  var S = window.SteadyShared;
+
+  document.getElementById('themeBtn').addEventListener('click', function () { S.toggleTheme(); });
+
+  document.querySelectorAll('.tab-btn').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var name = b.dataset.tab;
+      document.querySelectorAll('.tab-btn').forEach(function (x) { x.classList.toggle('active', x.dataset.tab === name); });
+      document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.toggle('active', p.id === 'tab-' + name); });
+    });
+  });
+
+  // 共通 attachBackupUI 経由（B2 リファクタ・refreshSummary 散布解消）
+  var refreshSummary = S.attachBackupUI({ detailedCount: false });
+
+  document.getElementById('exportBackupBtn').addEventListener('click', function () {
+    var ok = S.downloadJSONExport();
+    if (ok) {
+      var el = document.getElementById('storageEstResult');
+      if (el) el.textContent = 'JSON バックアップを書き出しました。';
+      refreshSummary();
+    } else {
+      var el2 = document.getElementById('storageEstResult');
+      if (el2) el2.textContent = '書き出しに失敗しました。';
+    }
+  });
+
+  document.getElementById('estStorageBtn').addEventListener('click', function () {
+    S.getStorageEstimate().then(function (e) {
+      var el = document.getElementById('storageEstResult');
+      if (!e) { el.textContent = 'ストレージ API は未対応です。'; return; }
+      var mb = function (n) { return (n / 1024 / 1024).toFixed(2); };
+      el.textContent = '使用量 ' + mb(e.usage) + ' MB / クォータ ' + mb(e.quota) + ' MB';
+    });
+  });
+})();
+</script>
+</body>
+</html>

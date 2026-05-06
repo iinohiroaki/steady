@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#7c6af7">
+<title>STEADY DOJO QUEST — 耳訓練（v3.2.0r2 / B15a 予定）</title>
+
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="STEADY">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="apple-touch-icon" sizes="192x192" href="./icon-192.png">
+<link rel="apple-touch-icon" sizes="512x512" href="./icon-512.png">
+<link rel="icon" type="image/svg+xml" href="./steady-icon.svg">
+
+<link rel="stylesheet" href="./steady-shared.css">
+
+<script src="./vendor/tone.js"></script>
+<script src="./steady-shared.js"></script>
+
+<style>
+  .ear-hero { text-align:center; padding: 24px 16px 8px; }
+  .ear-hero h2 { margin: 0 0 6px; font-size: 1.3rem; font-weight: 700; }
+  .ear-hero p { margin: 0; color: var(--muted); font-size: 0.92rem; }
+  .placeholder-card {
+    border: 1px dashed var(--border);
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+  .ab-skeleton {
+    border: 1.5px solid var(--accent);
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 12px;
+  }
+  .ab-skeleton .row { margin-top: 12px; justify-content: space-around; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div>
+      <h1>STEADY <span class="sub">v3.2.0r2 — ear (耳訓練 A/B 比較)</span></h1>
+    </div>
+    <button class="theme-btn" id="themeBtn" type="button">light/dark</button>
+  </div>
+</header>
+
+<main>
+  <!-- B8 Run 7（UX-11）：14 日連続未使用 警告バナー -->
+  <div class="stale-warn-banner" id="staleWarnBanner" role="alert" aria-live="polite"></div>
+
+  <section class="tab-panel active" role="tabpanel">
+    <div class="ear-hero">
+      <h2>耳訓練</h2>
+      <p>A/B 比較ゲーム1種（揺らぎ識別）／ Phase 1.5 で本実装予定</p>
+    </div>
+
+    <!-- B15a 本実装まではプレースホルダ -->
+    <div class="ab-skeleton">
+      <div class="card-title">A/B 比較（揺らぎ識別）— 骨格</div>
+      <div class="muted-text small">
+        2つの音源を連続再生し、「どちらが揺らぎ少ない？」を選ぶゲーム。
+        サンプル 30-50 ペア・96kbps mono mp3・runtime fetch + IndexedDB cache。
+      </div>
+      <div class="row">
+        <button class="btn-secondary" id="playA" type="button" disabled>▶ A を聴く</button>
+        <button class="btn-secondary" id="playB" type="button" disabled>▶ B を聴く</button>
+      </div>
+      <div class="row">
+        <button class="btn-primary" id="answerA" type="button" disabled>A の方が安定</button>
+        <button class="btn-primary" id="answerB" type="button" disabled>B の方が安定</button>
+      </div>
+      <div class="muted-text small" style="margin-top:10px;">
+        本セクションは Phase 1.5（B15a）で本実装。Phase 1 完了直後に発注（RULE 5 違反回避）。
+      </div>
+    </div>
+
+    <div class="placeholder-card">
+      <div class="card-title">B15b-e（Phase 2 送り）</div>
+      <div>
+        Tempo deviation 検出 / Beat-head 検出 / Pattern diff 検出 / 録音セルフレビュー。
+        Phase 1.5 PASS 後に発注（450ペア完全実装）。
+      </div>
+    </div>
+
+    <!-- B1：耳訓練タブからもバックアップ書き出しに辿り着けるように（B2: 共通 attachBackupUI 適用） -->
+    <div class="card-secondary">
+      <div class="card-title">バックアップ</div>
+      <div class="muted-text small">
+        練習データ・診断結果・進捗を JSON で書き出します。
+      </div>
+      <div class="backup-summary" id="backupSummary">
+        <div><dt>保存中の項目</dt><dd id="sumCount">—</dd></div>
+        <div><dt>容量（概算）</dt><dd id="sumBytes">—</dd></div>
+        <div><dt>最終バックアップ</dt><dd id="sumLastExport">—</dd></div>
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <button class="btn-primary" id="exportBackupBtn" type="button">JSON バックアップ書き出し</button>
+      </div>
+      <div class="muted-text small" id="exportResult" style="margin-top:6px;"></div>
+    </div>
+  </section>
+</main>
+
+<nav class="float-nav" aria-label="STEADY 主要画面">
+  <a href="./steady-core.html" data-html="core">core</a>
+  <a href="./steady-game.html" data-html="game">game</a>
+  <a href="./steady-ear.html" data-html="ear">ear</a>
+</nav>
+
+<!-- B8 Run 7：UX-11 stale warn 判定で SteadyUseLog が必要 -->
+<script src="./steady-use-log.js"></script>
+<script>
+(function () {
+  'use strict';
+  var S = window.SteadyShared;
+  document.getElementById('themeBtn').addEventListener('click', function () { S.toggleTheme(); });
+
+  // 共通 attachBackupUI 経由（B2 リファクタ・refreshSummary 散布解消）
+  var refreshSummary = S.attachBackupUI({ detailedCount: false });
+
+  var btn = document.getElementById('exportBackupBtn');
+  if (btn) {
+    btn.addEventListener('click', function () {
+      var ok = S.downloadJSONExport();
+      var el = document.getElementById('exportResult');
+      if (el) el.textContent = ok ? 'JSON バックアップを書き出しました。' : '書き出しに失敗しました。';
+      refreshSummary();
+    });
+  }
+})();
+</script>
+</body>
+</html>
