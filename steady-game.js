@@ -1180,6 +1180,37 @@
   }
 
   // -------------------------------------------------------------
+  // 8-1. V4-XP-A1（v3.3.0r1 hotfix）：起動時自動加算
+  //   発注書 §2-2：DOMContentLoaded 後 1 秒で chargeFromPractice +
+  //               SteadySelfReport.chargeUnclaimedSelfReports を try-catch 経由で実行
+  //   - 手動 🔋 ボタン（L2276 後段）には触れない（緊急時用に残置）
+  //   - state.lastChargeAt / SteadySelfReport.lastChargeAt で冪等性確保
+  // -------------------------------------------------------------
+  if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function () {
+        setTimeout(function () {
+          try { chargeFromPractice(); } catch (_) {}
+          try {
+            if (global.SteadySelfReport && typeof global.SteadySelfReport.chargeUnclaimedSelfReports === 'function') {
+              global.SteadySelfReport.chargeUnclaimedSelfReports();
+            }
+          } catch (_) {}
+        }, 1000);
+      });
+    } else {
+      setTimeout(function () {
+        try { chargeFromPractice(); } catch (_) {}
+        try {
+          if (global.SteadySelfReport && typeof global.SteadySelfReport.chargeUnclaimedSelfReports === 'function') {
+            global.SteadySelfReport.chargeUnclaimedSelfReports();
+          }
+        } catch (_) {}
+      }, 1000);
+    }
+  }
+
+  // -------------------------------------------------------------
   // 9. 装備ドロップ
   // -------------------------------------------------------------
   function dropEquipment(state, enemy) {
@@ -2334,7 +2365,7 @@
   // 19. 公開 API
   // -------------------------------------------------------------
   global.SteadyGame = {
-    __version: 'v3.2.0r2-block8-h5',
+    __version: 'v3.3.0-block9-h2',
     AutoBattle: AutoBattle,
     autoBattle: autoBattle,
     loadState: loadState,

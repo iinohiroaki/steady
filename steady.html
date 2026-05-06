@@ -10,6 +10,8 @@
 <!-- ローカル vendor（CDN落ち耐性） -->
 <script src="vendor/tone.js"></script>
 <script src="vendor/chart.js"></script>
+<!-- v3.3.0r1 hotfix：自己申告練習記録（IIFE・window.SteadySelfReport 公開） -->
+<script src="./steady-self-report.js" defer></script>
 <!-- ワンショット SW クリーンアップ（旧 r1〜r4 の SW を強制破棄して v3.0 へ） -->
 <script>
 (function(){
@@ -118,6 +120,22 @@ main {
 }
 .tab-panel { display: none; }
 .tab-panel.active { display: block; }
+
+/* v3.3.0r1 hotfix：練習記録ヒートマップ（直近 30 日 6×5 グリッド） */
+.heatmap-grid {
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin-top: 8px;
+}
+.heatmap-cell {
+  aspect-ratio: 1 / 1; border-radius: 4px;
+  background: var(--surface); border: 1px solid var(--border);
+  position: relative; cursor: default;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.65rem; color: var(--muted);
+}
+.heatmap-cell[data-level="1"] { background: rgba(124, 106, 247, 0.20); border-color: rgba(124, 106, 247, 0.30); color: var(--text); }
+.heatmap-cell[data-level="2"] { background: rgba(124, 106, 247, 0.40); border-color: rgba(124, 106, 247, 0.50); color: var(--text); }
+.heatmap-cell[data-level="3"] { background: rgba(124, 106, 247, 0.65); border-color: rgba(124, 106, 247, 0.75); color: #fff; }
+.heatmap-cell[data-level="4"] { background: rgba(124, 106, 247, 0.95); border-color: rgba(124, 106, 247, 1.00); color: #fff; }
 
 h2 {
   margin: 0 0 14px; font-size: 1.25rem; font-weight: 700;
@@ -748,6 +766,67 @@ textarea { width: 100%; min-height: 60px; resize: vertical; }
     <canvas id="gameChart" height="160"></canvas>
     <div class="muted-text small" id="gameChartSummary" style="margin-top:8px;">履歴なし</div>
   </div>
+
+  <!-- =====================================================
+       v3.3.0r1 hotfix：練習記録（自己申告）
+       スタジオ・ライブ・自宅セット・練習パッド・その他での
+       練習時間を記録すると XP / コインに変換される（30秒 = 5XP / 2🪙）
+       ===================================================== -->
+  <div class="card-secondary" id="practiceLogCard">
+    <div class="card-title">📓 練習記録（自己申告）</div>
+    <div class="muted-text small">スタジオ・ライブ・自宅セット・練習パッド・その他での練習時間を記録すると XP に変換される（30 秒 = 5 XP / 2 🪙）。メトロノーム使用時間は自動加算済み。</div>
+    <form id="selfReportForm" style="display:flex; flex-direction:column; gap:10px; margin-top:12px;">
+      <label class="field" style="display:block; margin:0;">カテゴリ
+        <select id="srCategory" style="margin-top:4px;">
+          <option value="studio">スタジオ</option>
+          <option value="live">ライブ</option>
+          <option value="home_kit">自宅セット</option>
+          <option value="practice_pad">練習パッド</option>
+          <option value="other">その他</option>
+        </select>
+      </label>
+      <label class="field" style="display:block; margin:0;">分数（上限なし）
+        <input type="number" id="srMinutes" min="1" step="1" placeholder="例：60" style="margin-top:4px; width:120px;">
+      </label>
+      <label class="field" style="display:block; margin:0;">メモ（任意・200字まで）
+        <textarea id="srMemo" maxlength="200" rows="2" placeholder="例：8ビート練習・テンポ100で20分→120で40分" style="margin-top:4px;"></textarea>
+      </label>
+      <button type="submit" class="btn-primary" id="srSubmitBtn">記録する</button>
+    </form>
+    <div id="srToast" class="result-box muted-text small" style="margin-top:10px; display:none;"></div>
+  </div>
+
+  <!-- =====================================================
+       v3.3.0r1 hotfix：練習の振り返り
+       streak / 累計 4 セル + 折れ線 + ドーナツ + ヒートマップ
+       ===================================================== -->
+  <div class="card-secondary" id="practiceLookbackCard">
+    <div class="card-title">📊 練習の振り返り</div>
+    <div class="metric-grid" style="margin-bottom:12px;">
+      <div class="metric-cell">
+        <div class="v" id="lookbackStreak">0</div>
+        <div class="l">🔥 連続練習日</div>
+      </div>
+      <div class="metric-cell">
+        <div class="v" id="lookbackTotalMin">0</div>
+        <div class="l">総練習分（累計）</div>
+      </div>
+      <div class="metric-cell">
+        <div class="v" id="lookbackTotalXp">0</div>
+        <div class="l">獲得 XP（累計）</div>
+      </div>
+      <div class="metric-cell">
+        <div class="v" id="lookbackTotalCoin">0</div>
+        <div class="l">獲得 🪙（累計）</div>
+      </div>
+    </div>
+    <div class="card-meta" style="margin-top:8px;">直近 30 日の練習分（折れ線）</div>
+    <canvas id="lookbackLineChart" height="140"></canvas>
+    <div class="card-meta" style="margin-top:14px;">カテゴリ別シェア（30 日・自己申告 + メトロ使用時間）</div>
+    <canvas id="lookbackPieChart" height="140"></canvas>
+    <div class="card-meta" style="margin-top:14px;">月間ヒートマップ（直近 30 日・色濃いほど練習多）</div>
+    <div id="lookbackHeatmap" class="heatmap-grid"></div>
+  </div>
 </section>
 
 <!-- ============================================================
@@ -1239,6 +1318,8 @@ textarea { width: 100%; min-height: 60px; resize: vertical; }
     renderGameMetrics();
     renderHomeStreak();
   }
+  // v3.3.0r1 hotfix：SteadySelfReport.applyXpAndCoin から呼べるよう window エクスポート
+  try { window.addXp = addXp; } catch(_) {}
   function addStarDirect(n) {
     if (n <= 0) return;
     const g = loadGame();
@@ -2470,7 +2551,7 @@ textarea { width: 100%; min-height: 60px; resize: vertical; }
   function switchTab(name) {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + name));
-    if (name === 'game') { renderGameMetrics(); renderGameChart(); renderDexList(); }
+    if (name === 'game') { renderGameMetrics(); renderGameChart(); renderDexList(); renderPracticeLookback(); }
     if (name === 'home') { renderHome(); renderHomeStreak(); renderHomeIkkiRecord(); }
     if (name === 'dojo') { renderHuntList(); renderQuestRoute(); }
     if (name === 'library') {
@@ -2549,6 +2630,9 @@ textarea { width: 100%; min-height: 60px; resize: vertical; }
     $('setImportFile').addEventListener('change', (e) => { const f = e.target.files[0]; if (f) importJson(f); });
     $('setEraseBtn').addEventListener('click', eraseAll);
 
+    // v3.3.0r1 hotfix：自己申告フォーム + 振り返り UI 配線
+    try { bindSelfReportForm(); } catch(_) {}
+
     // キーボード（1〜5：タブ、Space：メトロ）
     document.addEventListener('keydown', (e) => {
       if (e.target.matches('input, textarea, select')) return;
@@ -2556,6 +2640,192 @@ textarea { width: 100%; min-height: 60px; resize: vertical; }
       if (mapping[e.key]) { e.preventDefault(); switchTab(mapping[e.key]); return; }
       if (e.code === 'Space') { e.preventDefault(); metroToggle(); }
     });
+  }
+
+  // ============================================================
+  // v3.3.0r1 hotfix：自己申告フォーム + 練習振り返り UI
+  //   - bindSelfReportForm()：submit ハンドラ → SteadySelfReport.addEntry → トースト → 再描画
+  //   - renderPracticeLookback()：4 セル + 折れ線 + ドーナツ + ヒートマップ
+  //   - SteadySelfReport が無い場合は graceful skip（既存破壊ゼロ）
+  // ============================================================
+  let _lookbackLineChart = null;
+  let _lookbackPieChart = null;
+  const SR_CATEGORY_LABEL = {
+    studio: 'スタジオ',
+    live: 'ライブ',
+    home_kit: '自宅セット',
+    practice_pad: '練習パッド',
+    other: 'その他',
+    app_time: 'メトロ使用時間'
+  };
+  const SR_CATEGORY_COLOR = {
+    studio:       '#7c6af7',
+    live:         '#f97316',
+    home_kit:     '#10b981',
+    practice_pad: '#0ea5e9',
+    other:        '#94a3b8',
+    app_time:     '#fbbf24'
+  };
+
+  function srHasModule() {
+    return !!(window.SteadySelfReport && typeof window.SteadySelfReport.addEntry === 'function');
+  }
+
+  function bindSelfReportForm() {
+    const form = $('selfReportForm');
+    if (!form) return;
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (!srHasModule()) { srShowToast('練習記録モジュールが読み込まれていません', false); return; }
+      const cat = $('srCategory').value;
+      const minRaw = $('srMinutes').value;
+      const memo = ($('srMemo').value || '').slice(0, 200);
+      const min = parseInt(minRaw, 10);
+      if (!isFinite(min) || min < 1) { srShowToast('分数は 1 以上の数値で入力してください', false); return; }
+      const r = window.SteadySelfReport.addEntry({ category: cat, minutes: min, memo: memo });
+      if (!r || !r.ok) { srShowToast('記録に失敗しました：' + (r && r.reason || 'unknown'), false); return; }
+      // monolithic addXp は SteadySelfReport 内で既に呼ばれているため、
+      // ここでは表示更新のみ（重複加算回避）。
+      $('srMinutes').value = '';
+      $('srMemo').value = '';
+      srShowToast('+' + r.addXp + ' XP / +' + r.addCoin + ' 🪙 加算しました（' + SR_CATEGORY_LABEL[cat] + ' ' + min + ' 分）', true);
+      try { renderGameMetrics(); renderHomeStreak(); } catch(_) {}
+      try { renderPracticeLookback(); } catch(_) {}
+    });
+  }
+
+  function srShowToast(msg, ok) {
+    const el = $('srToast');
+    if (!el) return;
+    el.textContent = msg;
+    el.style.display = 'block';
+    el.style.color = ok ? 'var(--text)' : 'var(--danger)';
+    setTimeout(() => { el.style.display = 'none'; }, 3500);
+  }
+
+  function renderPracticeLookback() {
+    if (!srHasModule()) return;
+    try {
+      const streak = window.SteadySelfReport.getStreakDays();
+      const cum = window.SteadySelfReport.getCumulative();
+      if ($('lookbackStreak')) $('lookbackStreak').textContent = String(streak);
+      if ($('lookbackTotalMin')) $('lookbackTotalMin').textContent = String(cum.totalMinutes);
+      if ($('lookbackTotalXp')) $('lookbackTotalXp').textContent = String(cum.totalXp);
+      if ($('lookbackTotalCoin')) $('lookbackTotalCoin').textContent = String(cum.totalCoin);
+    } catch(_) {}
+    try { renderPracticeLineChart(); } catch(_) {}
+    try { renderPracticePieChart(); } catch(_) {}
+    try { renderPracticeHeatmap(); } catch(_) {}
+  }
+
+  function renderPracticeLineChart() {
+    if (typeof Chart === 'undefined') return;
+    const canvas = $('lookbackLineChart');
+    if (!canvas) return;
+    const rows = window.SteadySelfReport.getDailyTotalMinutes(30);
+    const labels = rows.map((r) => r.date.slice(5)); // MM-DD
+    const data = rows.map((r) => r.totalMinutes || 0);
+    const cfg = {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: '練習分（自己申告 + メトロ）',
+          data: data,
+          borderColor: '#7c6af7',
+          backgroundColor: 'rgba(124,106,247,0.15)',
+          fill: true,
+          tension: 0.25,
+          pointRadius: 2
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 8 } },
+          y: { beginAtZero: true, ticks: { precision: 0 } }
+        }
+      }
+    };
+    if (_lookbackLineChart) {
+      _lookbackLineChart.data = cfg.data;
+      _lookbackLineChart.update('none');
+    } else {
+      _lookbackLineChart = new Chart(canvas.getContext('2d'), cfg);
+    }
+  }
+
+  function renderPracticePieChart() {
+    if (typeof Chart === 'undefined') return;
+    const canvas = $('lookbackPieChart');
+    if (!canvas) return;
+    const bd = window.SteadySelfReport.getCategoryBreakdown(30);
+    const order = ['studio', 'live', 'home_kit', 'practice_pad', 'other', 'app_time'];
+    const labels = order.map((k) => SR_CATEGORY_LABEL[k]);
+    const data = order.map((k) => bd[k] || 0);
+    const colors = order.map((k) => SR_CATEGORY_COLOR[k]);
+    const total = data.reduce((s, v) => s + v, 0);
+    const cfg = {
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [{ data: data, backgroundColor: colors, borderWidth: 0 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const v = ctx.parsed || 0;
+                const pct = total > 0 ? Math.round(v / total * 100) : 0;
+                return ctx.label + ': ' + v + ' 分（' + pct + '%）';
+              }
+            }
+          }
+        }
+      }
+    };
+    if (_lookbackPieChart) {
+      _lookbackPieChart.data = cfg.data;
+      _lookbackPieChart.update('none');
+    } else {
+      _lookbackPieChart = new Chart(canvas.getContext('2d'), cfg);
+    }
+  }
+
+  function renderPracticeHeatmap() {
+    const grid = $('lookbackHeatmap');
+    if (!grid) return;
+    const rows = window.SteadySelfReport.getDailyTotalMinutes(30);
+    // 強度判定：0 → level 0、1〜29 → 1、30〜59 → 2、60〜119 → 3、120+ → 4
+    function levelFor(min) {
+      if (min <= 0) return 0;
+      if (min < 30) return 1;
+      if (min < 60) return 2;
+      if (min < 120) return 3;
+      return 4;
+    }
+    const html = rows.map((r) => {
+      const lv = levelFor(r.totalMinutes || 0);
+      const dd = r.date.slice(8); // DD
+      const tip = r.date + ' / 自己申告 ' + (r.selfMin || 0) + '分 + メトロ ' + (r.appMin || 0) + '分 = 計 ' + (r.totalMinutes || 0) + '分';
+      return '<div class="heatmap-cell" data-level="' + lv + '" title="' + tip + '">' + dd + '</div>';
+    }).join('');
+    grid.innerHTML = html;
+  }
+
+  // 初回 renderPracticeLookback（DOMContentLoaded 後 1.5 秒）
+  if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function () {
+        setTimeout(function () { try { renderPracticeLookback(); } catch(_) {} }, 1500);
+      });
+    } else {
+      setTimeout(function () { try { renderPracticeLookback(); } catch(_) {} }, 1500);
+    }
   }
 
   // ============================================================

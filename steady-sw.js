@@ -26,8 +26,8 @@
 
 'use strict';
 
-// VERSION tag: 'block9-h1'（v3.3.0 phase 0：妖怪 50 体拡張＋週替り＋装備 3-5＋プレステ敵強化＋分解→星＋HP scale・AL007 / 2026-05-07）
-const VERSION = 'steady-v3.3.0-block9-h1';
+// VERSION tag: 'block9-h2'（v3.3.0r1 hotfix：練習時間 XP 自動加算＋自己申告 UI＋振り返り UI・AL007 / 2026-05-07）
+const VERSION = 'steady-v3.3.0-block9-h2';
 const CACHE_STATIC = VERSION + '-static';
 const CACHE_RUNTIME = VERSION + '-runtime';
 
@@ -49,6 +49,7 @@ const PRECACHE_URLS = [
   './steady-emolab-p5p8.js',
   './steady-midi-loops.js',
   './steady-use-log.js',
+  './steady-self-report.js',
   './steady-recorder.js',
   './steady-stagnation.js',
   './steady-beat-wheel.js',
@@ -61,7 +62,7 @@ const PRECACHE_URLS = [
 ];
 
 // 旧 cache（v3.0/v3.1/旧 r2 試作）を一掃する prefix
-const OLD_CACHE_PREFIXES = ['steady-v3.0', 'steady-v3.1', 'steady-v3.2.0r2-block0', 'steady-v3.2.0r2-block1', 'steady-v3.2.0r2-block2', 'steady-v3.2.0r2-block3', 'steady-v3.2.0r2-block4', 'steady-v3.2.0r2-block5', 'steady-v3.2.0r2-block6', 'steady-v3.2.0r2-block7', 'steady-v3.2.0r2-block8-h1', 'steady-v3.2.0r2-block8-h2', 'steady-v3.2.0r2-block8-h3', 'steady-v3.2.0r2-block8-h4', 'steady-v3.2.0r2-block8-h5', 'steady-v3.2.0r2-block8-h6'];
+const OLD_CACHE_PREFIXES = ['steady-v3.0', 'steady-v3.1', 'steady-v3.2.0r2-block0', 'steady-v3.2.0r2-block1', 'steady-v3.2.0r2-block2', 'steady-v3.2.0r2-block3', 'steady-v3.2.0r2-block4', 'steady-v3.2.0r2-block5', 'steady-v3.2.0r2-block6', 'steady-v3.2.0r2-block7', 'steady-v3.2.0r2-block8-h1', 'steady-v3.2.0r2-block8-h2', 'steady-v3.2.0r2-block8-h3', 'steady-v3.2.0r2-block8-h4', 'steady-v3.2.0r2-block8-h5', 'steady-v3.2.0r2-block8-h6', 'steady-v3.3.0-block9-h1'];
 
 // -------------------------------------------------------------
 // install: 静的 precache
