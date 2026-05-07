@@ -124,20 +124,42 @@ header {
   padding: 6px 10px; cursor: pointer; font-size: 0.85rem;
 }
 .theme-btn:hover { border-color: var(--accent); }
-.tabs {
-  display: flex; gap: 0; max-width: var(--maxw); margin: 10px auto 0;
-  overflow-x: auto; -webkit-overflow-scrolling: touch;
+/* v3.3.0r3 #1：上部 .tabs / .tab-btn は削除（下部タブ 5 に一本化）。残骸 CSS も完全除去。 */
+
+/* v3.3.0r3 #4：メトロずれ視覚インジケーター（横バー＋ドット 8 個・数値非表示 default） */
+.metro-drift-indicator {
+  margin-top: 14px; padding: 10px 12px;
+  background: var(--c-bg, #fff); border: 1px solid var(--border, #e5e5e5);
+  border-radius: 8px;
 }
-.tab-btn {
-  flex: 1 1 auto; min-width: 70px;
-  background: transparent; color: var(--muted);
-  border: none; border-bottom: 2px solid transparent;
-  padding: 12px 4px; font-size: 0.92rem; font-weight: 600;
-  cursor: pointer; white-space: nowrap;
-  transition: color 0.15s, border-color 0.15s;
+.metro-drift-indicator .drift-track {
+  position: relative; width: 100%; height: 28px;
+  background: linear-gradient(to right,
+    rgba(220,38,38,0.08) 0%, rgba(245,158,11,0.08) 25%,
+    rgba(34,197,94,0.12) 50%,
+    rgba(245,158,11,0.08) 75%, rgba(220,38,38,0.08) 100%);
+  border-radius: 14px; overflow: hidden;
 }
-.tab-btn:hover { color: var(--text); }
-.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+.metro-drift-indicator .drift-track-center {
+  position: absolute; left: 50%; top: 0; bottom: 0; width: 2px;
+  background: var(--text, #333); transform: translateX(-1px); opacity: 0.4;
+}
+.metro-drift-indicator .drift-dots {
+  position: absolute; inset: 0;
+}
+.metro-drift-indicator .drift-dot {
+  position: absolute; top: 50%; width: 10px; height: 10px;
+  border-radius: 50%; transform: translate(-50%, -50%);
+  transition: opacity 0.8s ease-out;
+  pointer-events: none;
+}
+.metro-drift-indicator .drift-dot.green { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.6); }
+.metro-drift-indicator .drift-dot.yellow { background: #f59e0b; box-shadow: 0 0 6px rgba(245,158,11,0.6); }
+.metro-drift-indicator .drift-dot.red { background: #dc2626; box-shadow: 0 0 6px rgba(220,38,38,0.6); }
+.metro-drift-indicator .drift-legend {
+  display: flex; justify-content: space-between;
+  font-size: 0.7rem; color: var(--muted, #888); margin-top: 4px;
+}
 
 main {
   max-width: var(--maxw); margin: 0 auto;
@@ -702,13 +724,7 @@ main {
     <h1>STEADY DOJO QUEST <span class="sub">v3.1</span></h1>
     <button id="themeBtn" class="theme-btn" type="button" aria-label="テーマ切替">light/dark</button>
   </div>
-  <nav class="tabs" role="tablist" aria-label="主要タブ">
-    <button class="tab-btn active" data-tab="home" role="tab">HOME</button>
-    <button class="tab-btn" data-tab="metro" role="tab">METRO</button>
-    <button class="tab-btn" data-tab="dojo" role="tab">道場</button>
-    <button class="tab-btn" data-tab="game" role="tab">GAME</button>
-    <button class="tab-btn" data-tab="library" role="tab">書庫</button>
-  </nav>
+  <!-- v3.3.0r3 #1：上部タブは下部タブ 5 と二重化していたため完全削除（代表 FB 1 件目） -->
 </header>
 
 <main>
@@ -807,11 +823,35 @@ main {
         <input type="checkbox" id="metroCountIn" checked> カウントイン
       </label>
     </div>
+    <!-- v3.3.0r3 #5：拍子 sequence UI（小節ごと指定・単一拍子と互換維持） -->
+    <div class="row" style="margin-bottom:12px; flex-wrap:wrap; gap:6px;">
+      <label class="field" for="metroSigSequence" style="flex:1 1 100%;">
+        拍子 sequence（小節ごと・任意）
+        <input type="text" id="metroSigSequence" placeholder="例：4/4 x 4 → 6/8 x 2 → 4/4 x 4" style="margin-top:4px; width:100%;">
+      </label>
+      <div class="muted-text small" id="metroSigSequenceHint" style="flex:1 1 100%;">空欄なら上の単一拍子を使用。</div>
+    </div>
     <button id="metroToggleBtn" class="btn-primary" type="button">START</button>
     <div class="row" style="margin-top:10px; gap:8px;">
       <button id="metroSendBattleBtn" class="btn-secondary grow" type="button">この BPM で次回戦闘を組む</button>
     </div>
     <div class="muted-text small" id="metroNextBattleHint" style="margin-top:6px;"></div>
+    <!-- v3.3.0r3 #4：メトロずれ視覚インジケーター（横バー＋ドット 8 個・常時表示・数値非表示 default） -->
+    <div id="metro-drift-indicator" class="metro-drift-indicator" aria-label="ずれ視覚インジケーター">
+      <div class="drift-track">
+        <div class="drift-track-center"></div>
+        <div class="drift-dots" id="driftViz"></div>
+      </div>
+      <div class="drift-legend">
+        <span>← 先走り</span>
+        <span>ジャスト</span>
+        <span>遅れ →</span>
+      </div>
+      <label class="field small" style="margin-top:6px; font-size:0.8rem;">
+        <input type="checkbox" id="driftShowMs"> 数値 ms も表示（補助）
+      </label>
+      <div class="muted-text small" id="driftMsLabel" style="display:none; margin-top:4px;"></div>
+    </div>
   </div>
 </section>
 
@@ -820,21 +860,15 @@ main {
      ============================================================ -->
 <section id="tab-dojo" class="tab-panel" role="tabpanel">
   <h2>🎯 道場</h2>
+  <!-- v3.3.0r3 #6：旧 hunt UI（push tight 訓練含む）を全廃。妖怪戦は GAME タブの AutoBattle に一本化（代表明示「AutoBattle 一択」） -->
   <nav class="seg-nav" role="tablist" aria-label="道場セグメント">
-    <button class="seg-btn active" data-seg="hunt" role="tab">妖怪退治</button>
-    <button class="seg-btn" data-seg="quest" role="tab">冒険ルート</button>
+    <button class="seg-btn active" data-seg="quest" role="tab">冒険ルート</button>
     <button class="seg-btn" data-seg="rudi" role="tab">基礎修行</button>
     <button class="seg-btn" data-seg="tap" role="tab">訓練</button>
   </nav>
 
-  <!-- 妖怪退治（5体） -->
-  <div id="seg-hunt" class="seg-panel active">
-    <p class="section-sub">5体の妖怪が道場の周りに巣食っている。BPM・小節を整えて挑め。</p>
-    <div id="huntList"></div>
-  </div>
-
   <!-- 冒険ルート（旧目標／入力反映型） -->
-  <div id="seg-quest" class="seg-panel">
+  <div id="seg-quest" class="seg-panel active">
     <div class="card-secondary">
       <div class="card-title">冒険の道筋</div>
       <div class="muted-text small">3か月後にどうなりたい？ キーワード（BPM／16分／グルーヴ／持久）に応じて撃破推奨順を生成する。</div>
@@ -1126,8 +1160,8 @@ main {
 </main>
 
 <!-- ============================================================
-     v3.3.0r2 下部タブ 5（HOME 🏠 / METRO 🥁 / 道場 ⛩ / GAME ⚔ / 書庫 📚）
-     - 既存の上部 .tabs と二系統並走（既存破壊禁止・data-tab 同一値で連動）
+     v3.3.0r3 下部タブ 5 一本化（HOME 🏠 / METRO 🥁 / 道場 ⛩ / GAME ⚔ / 書庫 📚）
+     - v3.3.0r2 で上部タブと二重化していたが r3 で上部削除（代表 FB 1 件目）
      - 選択時：背景 var(--c-warning) ハイライト＋文字反転（Persona 5 模倣）
      - タップ 48dp 以上・iOS safe-area 対応
      ============================================================ -->
@@ -1243,6 +1277,9 @@ main {
     V3_1_MIGRATED:    'steady_v3_1_migrated',     // v3.1 migration フラグ
     TUTORIAL_DONE:    'steady_tutorial_done_v3.1',// 修行入門完了フラグ
     NEXT_BATTLE_BPM:  'steady_next_battle_bpm',   // メトロ「これで戦う」で渡す BPM/拍子
+    DD_BPM_HISTORY:   'steady_dd_bpm_history_v3_3',// v3.3.0r3 #9 desirable difficulty BPM 履歴
+    DD_FIRST_USE_AT:  'steady_dd_first_use_at_v3_3',// v3.3.0r3 #9 初回使用日時（7日保護）
+    DD_USER_OVERRIDE: 'steady_dd_user_override_v3_3',// v3.3.0r3 #9 ユーザー上書き（手動 BPM 設定後の自動調整停止）
     QUEST_PROGRESS:   'steady_quest_progress_v3_1', // 冒険ルート週進捗（{ weekIdx: bool }）
     IKKI_RECORD:      'steady_ikki_record_v3_1',  // 五体一気駆け 最高記録 / 達成有無
     UNLOCKED_TOOLS:   'steady_unlocked_tools_v3_1', // 修行道具アンロック { mokugyo:bool, taiko:bool, hanafubuki:bool, inazuma:bool, sokkyou:bool }
@@ -1358,7 +1395,7 @@ main {
       tip: 'リターンの1拍目を遅らせず元に戻す',
       bronze: 85, silver: 90, gold: 95,
       weakness: 'push',
-      weaknessReason: '押引妖の押し引き感覚がリターンの精度を上げる',
+      weaknessReason: 'グルーヴ妖の押し引き感覚がリターンの精度を上げる',
       meaning: '銅 85 = 申告差 |平均| ≤ 15ms ／ 銀 90 = ≤ 10ms ／ 金 95 = ≤ 5ms',
       svg: '<svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><path d="M30 4 L40 14 L48 12 L46 22 L54 28 L46 32 L48 42 L40 40 L36 50 L30 44 L24 50 L20 40 L12 42 L14 32 L6 28 L14 22 L12 12 L20 14 Z M30 18 C26 18 23 21 23 25 C23 29 26 32 30 32 C34 32 37 29 37 25 C37 21 34 18 30 18 Z" fill-rule="evenodd"/></svg>'
     },
@@ -1366,7 +1403,7 @@ main {
       id: 'endu', name: '持久龍', train: 'bar100',
       line: '終盤に崩れを誘う持久戦ドラゴン',
       profile: '長丁場で必ず姿を現す竜。100小節キープでSDが12msを超えると一気に襲いかかる。終盤の集中こそが鱗を剥ぐ。',
-      tip: '腕力で叩かず手首の自然落下で',
+      tip: 'クリックの跳ね返り感を聞きながら',
       bronze: 80, silver: 85, gold: 92,
       weakness: 'yore',
       weaknessReason: 'よれモン撃破で1&3 が締まると持久が伸びる',
@@ -1374,11 +1411,11 @@ main {
       svg: '<svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><path d="M8 36 C8 28 14 22 22 22 L26 16 L30 22 L36 14 L38 22 L46 18 L46 26 C52 26 56 30 56 36 C56 42 52 46 46 46 L42 50 L38 46 L32 52 L28 46 L22 50 L18 46 L12 50 L10 46 C8 44 8 40 8 36 Z M20 30 C22 30 23 32 23 34 C23 36 22 37 20 37 C18 37 17 36 17 34 C17 32 18 30 20 30 Z" fill-rule="evenodd"/></svg>'
     },
     {
-      id: 'push', name: '押引妖', train: 'backbeat',
-      // v3.3.0r2 RULE C-3：UI コピーをジャスト訓練に統一（応用版は v3.4.0 backlog）
-      line: 'ジャストにバックビートを刻んでください',
-      profile: 'バックビートを揺らそうとする者を試す妖。2拍目・4拍目をジャストに叩き、ズレの絶対値が小さいほど成仏する。前乗り/後ろ乗りの応用は道場主に成った後で。',
-      tip: '裏拍を等間隔で並べる意識',
+      id: 'push', name: 'グルーヴ妖', train: 'backbeat',
+      // v3.3.0r3 #6：push 妖怪をグルーヴ妖に改称（AutoBattle 一択方針／前乗り/後ろ乗り応用は v3.4.0 backlog）
+      line: 'クリックにぴたり、バックビートで噛み合わせて',
+      profile: 'バックビートのグルーヴを試す妖。2拍目・4拍目をクリックにぴたり噛ませると成仏する。跳ね返り感を聞きながら、メトロにぶつけにいくのがコツ。',
+      tip: 'クリックの裏に鋭くぶつける',
       bronze: 88, silver: 93, gold: 96,
       weakness: 'maze',
       weaknessReason: '層界主の解像度がグルーヴに余裕を与える',
@@ -1553,6 +1590,72 @@ main {
   // 直前撃破された妖怪（相性ボーナス用・メモリ常駐・LS 不要）
   let _lastDefeatedId = null;
 
+  // ----------------------------------------------------------
+  // v3.3.0r3 #9：desirable difficulty（Bjork — Metcalfe-Bjork 2019）
+  //   - accuracy ≥90% → +2 BPM
+  //   - accuracy 75-90% → +1 BPM
+  //   - accuracy <75% → -1 BPM
+  //   - 週合計 +5 BPM 上限（暴走防止）
+  //   - 初回使用から 7 日間は -1 のみ（accuracy <75% でも -1 で止める保護）
+  //   - ユーザーが手動で BPM 設定したら _DD_USER_OVERRIDE = true で自動調整停止
+  //   - 反映先：LS.NEXT_BATTLE_BPM の bpm に書き戻し（メトロ／道場 fight に伝播）
+  // ----------------------------------------------------------
+  function ddApplyAccuracy(enemyId, accuracy) {
+    try {
+      // ユーザー手動上書きがあれば停止
+      if (lsGet(LS.DD_USER_OVERRIDE, false) === true) return null;
+      // 初回使用日時を記録
+      let firstUse = lsGet(LS.DD_FIRST_USE_AT, null);
+      if (!firstUse) {
+        firstUse = Date.now();
+        lsSet(LS.DD_FIRST_USE_AT, firstUse);
+      }
+      const daysSinceFirst = (Date.now() - firstUse) / (1000 * 60 * 60 * 24);
+      // 現在の戦闘 BPM（NEXT_BATTLE_BPM 未設定なら 100 デフォルト）
+      const nb = lsGet(LS.NEXT_BATTLE_BPM, null);
+      const curBpm = (nb && typeof nb.bpm === 'number') ? nb.bpm : 100;
+      const curSig = (nb && typeof nb.sig === 'number') ? nb.sig : 4;
+      // 履歴：直近 7 日分を保持
+      const history = lsGet(LS.DD_BPM_HISTORY, []) || [];
+      const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      const recent = history.filter(h => h && h.ts && h.ts >= weekAgo);
+      const weeklyDelta = recent.reduce((sum, h) => sum + (h.delta || 0), 0);
+      // 提案 delta
+      let delta = 0;
+      if (accuracy >= 90) delta = 2;
+      else if (accuracy >= 75) delta = 1;
+      else delta = -1;
+      // 7 日間保護：初回 7 日は +方向を抑制（-1 のみ許可）
+      if (daysSinceFirst < 7 && delta > 0) delta = 0;
+      // 週合計 +5 BPM 上限（+方向のみキャップ）
+      if (delta > 0 && weeklyDelta + delta > 5) {
+        delta = Math.max(0, 5 - weeklyDelta);
+      }
+      // 60-180 BPM 範囲クランプ
+      const newBpm = Math.max(60, Math.min(180, curBpm + delta));
+      const actualDelta = newBpm - curBpm;
+      // 履歴追記
+      recent.push({ ts: Date.now(), enemyId, accuracy, oldBpm: curBpm, newBpm, delta: actualDelta });
+      lsSet(LS.DD_BPM_HISTORY, recent);
+      // 反映
+      if (actualDelta !== 0) {
+        lsSet(LS.NEXT_BATTLE_BPM, { bpm: newBpm, sig: curSig, sentAt: Date.now(), source: 'desirable_difficulty' });
+        const arrow = actualDelta > 0 ? '↑' : '↓';
+        showToast('🎯 desirable difficulty：BPM ' + curBpm + ' ' + arrow + ' ' + newBpm + '（accuracy ' + Math.round(accuracy) + '%）', 4000);
+      }
+      return { oldBpm: curBpm, newBpm, delta: actualDelta, accuracy, weeklyDelta: weeklyDelta + actualDelta };
+    } catch (_) { return null; }
+  }
+
+  // ユーザーが手動で BPM 入力したら override フラグ立てる（呼び出し側で使う）
+  function ddMarkUserOverride() {
+    lsSet(LS.DD_USER_OVERRIDE, true);
+  }
+  // 自動調整を再開する（書庫トグル等から呼ぶ）
+  function ddClearUserOverride() {
+    lsSet(LS.DD_USER_OVERRIDE, false);
+  }
+
   function applyBattleResult(enemyId, score) {
     const e = ENEMY_BY_ID[enemyId];
     if (!e) return;
@@ -1593,9 +1696,13 @@ main {
       checkToolUnlocks();
       // v3.1：修行道具・修行記の書庫描画も更新
       try { renderLibTools(); renderLibKaidan(); } catch(_){}
+      // v3.3.0r3 #9：desirable difficulty — accuracy（score）から次回 BPM 微調整
+      try { ddApplyAccuracy(enemyId, score); } catch(_){}
     } else {
       all[enemyId] = cur;
       lsSet(LS.ENEMIES, all);
+      // v3.3.0r3 #9：撃破できなかった場合も accuracy で BPM 調整（基本 -1 BPM）
+      try { ddApplyAccuracy(enemyId, score); } catch(_){}
       const gap = (e.bronze - score);
       const gapStr = gap > 0 ? gap.toFixed(1) : '0.0';
       const tip = e.tip || 'もう一戦、構えを整え直して挑め';
@@ -1946,8 +2053,24 @@ main {
       bpmFields.forEach(id => { const el = $(id); if (el) el.value = Math.max(60, Math.min(180, nextBattleBpm.bpm)); });
     }
     // ボタン結線（毎回再生成のため都度バインド）
+    // v3.3.0r3 #3：戦うボタン 250ms debounce ＋視覚 disabled 化（連打音重なり防止）
     box.querySelectorAll('[data-fight]').forEach(b => {
-      b.addEventListener('click', () => fightEnemy(b.dataset.fight));
+      let _last = 0;
+      b.addEventListener('click', () => {
+        const now = Date.now();
+        if (now - _last < 250) return;
+        _last = now;
+        // 全 fight ボタンを 250ms ロック視覚化
+        box.querySelectorAll('[data-fight]').forEach(x => {
+          x.style.pointerEvents = 'none'; x.style.opacity = '0.55';
+        });
+        setTimeout(() => {
+          box.querySelectorAll('[data-fight]').forEach(x => {
+            x.style.pointerEvents = ''; x.style.opacity = '';
+          });
+        }, 350);
+        fightEnemy(b.dataset.fight);
+      });
     });
   }
   function huntResultId(id) { return 'huntResult_' + id; }
@@ -2044,23 +2167,49 @@ main {
 
   // ----------------------------------------------------------
   // 12. メトロノーム（Tone.js Transport ベース）
+  //   v3.3.0r3 改修：
+  //     #2 BPM 不変ガード（_bpmLockedDuringPlay：叩いてる間は bpm.value 代入無効化）
+  //     #3 START debounce（250ms）＋視覚 disabled 化
+  //     #4 ずれ視覚インジケーター（横バー＋ドット 8 個・緑黄赤 3 段階）
+  //     #5 拍子 sequence UI（4/4 x 2 → 6/8 x 1 形式・bar 単位 transport 連続維持）
   // ----------------------------------------------------------
   let _metroRunning = false;
   let _metroBeatIdx = 0;
   let _metroSynth = null;
   let _metroLoopId = null;
+  // v3.3.0r3 #2：BPM 不変ガード（_metroRunning 中の bpm.value 代入を全箇所で無効化）
+  let _bpmLockedDuringPlay = false;
+  // v3.3.0r3 #4：drift dots（最後の 8 打のみ・FIFO・fade out 0.8s）
+  const _driftBuf = [];
+  let _driftRaf = 0;
+  // v3.3.0r3 #5：sigSequence（パース済み・null なら単一拍子モード）
+  let _sigSequence = null;
+  let _sigSeqBarCursor = 0;       // 現在何小節目か（bar 単位）
+  let _sigSeqStepIdx = 0;         // sequence 配列のインデックス
+  let _sigSeqStepBarCnt = 0;      // 現 step 内で消化した bar 数
+
+  // v3.3.0r3 #2：bpm.value への代入は必ず safeSetTransportBpm() を経由する
+  function safeSetTransportBpm(v) {
+    if (typeof Tone === 'undefined') return;
+    if (_bpmLockedDuringPlay) {
+      // 叩いてる間は変更不可。silently ignore（UI レベルでも disabled にしてある）
+      if (window.STEADY_DEBUG) console.log('[metro] bpm.value 変更ブロック（_bpmLockedDuringPlay=true）', v);
+      return;
+    }
+    Tone.Transport.bpm.value = v;
+  }
 
   function metroSetBpm(v) {
     v = Math.max(40, Math.min(240, parseInt(v, 10) || 100));
     $('metroBpmDisp').textContent = String(v);
     $('metroBpmInput').value = v;
     $('metroBpmSlider').value = v;
-    if (typeof Tone !== 'undefined') Tone.Transport.bpm.value = v;
+    safeSetTransportBpm(v);
     return v;
   }
 
-  function metroBuildBeatDots() {
-    const sig = parseInt($('metroSig').value, 10) || 4;
+  function metroBuildBeatDots(sigOverride) {
+    const sig = sigOverride || parseInt($('metroSig').value, 10) || 4;
     const box = $('metroBeatDots');
     box.innerHTML = '';
     for (let i=0; i<sig; i++) {
@@ -2069,65 +2218,226 @@ main {
     }
   }
 
+  // v3.3.0r3 #5：sigSequence 文字列パース
+  // 受理形式：'4/4 x 2 → 6/8 x 1' / '4/4 x 4 -> 6/8 x 2' / '4/4*2, 6/8*1'
+  // 戻り値：[{sig: 4, bars: 2}, {sig: 6, bars: 1}, ...] or null
+  function parseSigSequence(text) {
+    if (!text || !text.trim()) return null;
+    // '→' '->' ',' で分割
+    const parts = String(text).split(/→|->|,|\n/).map(s => s.trim()).filter(Boolean);
+    if (parts.length === 0) return null;
+    const result = [];
+    for (const p of parts) {
+      // '4/4 x 2' or '4/4*2' or '4/4 2'
+      const m = p.match(/(\d+)\s*\/\s*(\d+)\s*(?:[x×*]|\s)\s*(\d+)/);
+      if (!m) continue;
+      const numerator = parseInt(m[1], 10);
+      const bars = parseInt(m[3], 10);
+      if (numerator > 0 && bars > 0) {
+        // 内部表現は分子のみ保持（既存メトロは sig=分子で動く・分母は表示用ヒント）
+        result.push({ sig: numerator, bars: bars, raw: m[1] + '/' + m[2] });
+      }
+    }
+    return result.length > 0 ? result : null;
+  }
+
+  function currentSigForBar(barIdx) {
+    if (!_sigSequence) return null;
+    let acc = 0;
+    for (const step of _sigSequence) {
+      acc += step.bars;
+      if (barIdx < acc) return step;
+    }
+    // 1 周回ったら頭に戻る（cyclic）
+    const total = _sigSequence.reduce((a, c) => a + c.bars, 0);
+    if (total <= 0) return null;
+    return currentSigForBar(barIdx % total);
+  }
+
+  // v3.3.0r3 #4：drift dots 描画（rAF ベース・常時表示・最後 8 打 fade）
+  function driftPush(driftMs) {
+    _driftBuf.push({ ms: driftMs, t: performance.now() });
+    while (_driftBuf.length > 8) _driftBuf.shift();
+    const showMs = $('driftShowMs') && $('driftShowMs').checked;
+    if (showMs) {
+      const lab = $('driftMsLabel');
+      if (lab) {
+        lab.style.display = '';
+        lab.textContent = '直近のずれ: ' + driftMs.toFixed(1) + ' ms';
+      }
+    }
+  }
+  function driftRender() {
+    const box = $('driftViz');
+    if (!box) { _driftRaf = 0; return; }
+    const now = performance.now();
+    box.innerHTML = '';
+    _driftBuf.forEach(d => {
+      const age = now - d.t;
+      if (age > 1200) return;
+      const opacity = Math.max(0, 1 - (age / 1200));
+      // ms → 横位置（中央 50%、±50ms = ±50% から外へクランプ）
+      const clampedMs = Math.max(-80, Math.min(80, d.ms));
+      const leftPct = 50 + (clampedMs / 80) * 45;
+      const abs = Math.abs(d.ms);
+      const colorClass = abs <= 15 ? 'green' : (abs <= 30 ? 'yellow' : 'red');
+      const dot = document.createElement('div');
+      dot.className = 'drift-dot ' + colorClass;
+      dot.style.left = leftPct + '%';
+      dot.style.opacity = opacity;
+      box.appendChild(dot);
+    });
+    _driftRaf = requestAnimationFrame(driftRender);
+  }
+  function driftStart() {
+    if (_driftRaf) return;
+    _driftRaf = requestAnimationFrame(driftRender);
+  }
+  function driftClear() {
+    _driftBuf.length = 0;
+    const box = $('driftViz'); if (box) box.innerHTML = '';
+  }
+
+  // v3.3.0r3 #3：debounce（START ボタン連打防止・250ms）
+  let _metroToggleDebounce = 0;
   async function metroToggle() {
+    const now = Date.now();
+    if (now - _metroToggleDebounce < 250) return;
+    _metroToggleDebounce = now;
     if (typeof Tone === 'undefined') { showToast('Tone.js 未ロード（vendor/tone.js を確認）', 4000); return; }
     if (_metroRunning) { metroStop(); return; }
-    await Tone.start();
-    if (!_metroSynth) _metroSynth = buildClickSynth();
-    if (!_metroSynth) { showToast('シンセ生成失敗', 3000); return; }
-    // v3.3.0r2 RULE B-3：vol 0-100 → 0-1.5 リニア（ceiling 1.5・過大歪み回避クランプ）
-    // 旧仕様（ceiling 1.0）は db = 20*log10(vol/100) で 100=0dB 上限、新仕様は 100=+3.5dB 程度
-    const volRaw = parseInt($('metroVol').value, 10) / 100;
-    const vol = Math.max(0, Math.min(1.5, volRaw * 1.5));
-    const db = (vol > 0) ? (20 * Math.log10(vol)) : -60;
-    if (_metroSynth.setVolume) _metroSynth.setVolume(db);
-    const bpm = metroSetBpm($('metroBpmInput').value);
-    const sig = parseInt($('metroSig').value, 10) || 4;
-    const countIn = $('metroCountIn').checked;
-    Tone.Transport.bpm.value = bpm;
-    metroBuildBeatDots();
-    _metroBeatIdx = 0;
+    const btn = $('metroToggleBtn');
+    if (btn) { btn.classList.add('is-loading'); btn.style.pointerEvents = 'none'; }
+    try {
+      await Tone.start();
+      if (!_metroSynth) _metroSynth = buildClickSynth();
+      if (!_metroSynth) { showToast('シンセ生成失敗', 3000); return; }
+      // v3.3.0r2 RULE B-3：vol 0-100 → 0-1.5 リニア（ceiling 1.5・過大歪み回避クランプ）
+      const volRaw = parseInt($('metroVol').value, 10) / 100;
+      const vol = Math.max(0, Math.min(1.5, volRaw * 1.5));
+      const db = (vol > 0) ? (20 * Math.log10(vol)) : -60;
+      if (_metroSynth.setVolume) _metroSynth.setVolume(db);
+      const bpm = metroSetBpm($('metroBpmInput').value);
+      // v3.3.0r3 #5：sigSequence をパース。空なら単一拍子モード
+      _sigSequence = parseSigSequence($('metroSigSequence') ? $('metroSigSequence').value : '');
+      _sigSeqBarCursor = 0; _sigSeqStepIdx = 0; _sigSeqStepBarCnt = 0;
+      const initialSig = _sigSequence ? _sigSequence[0].sig : (parseInt($('metroSig').value, 10) || 4);
+      const countIn = $('metroCountIn').checked;
+      // v3.3.0r3 #2：bpm 代入は safeSetTransportBpm() 経由（ガード前なので通る）
+      safeSetTransportBpm(bpm);
+      metroBuildBeatDots(initialSig);
+      _metroBeatIdx = 0;
+      driftClear();
+      driftStart();
 
-    const playBeat = () => {
-      const dots = document.querySelectorAll('#metroBeatDots .beat-dot');
-      dots.forEach(d => d.classList.remove('on'));
-      const idx = _metroBeatIdx % sig;
-      if (dots[idx]) dots[idx].classList.add('on');
-      // アクセント拍は note を上げる（NoiseSynth は note 無視・他は C4/C3）
-      const note = (idx === 0) ? 'C4' : 'C3';
-      _metroSynth.trigger(note, '32n');
-      _metroBeatIdx++;
-    };
+      let curSig = initialSig;
+      // v3.3.0r3 hotfix complement（B-3/B-4）：playBeat は scheduleRepeat callback の
+      // time（AudioContext.currentTime 基準秒）を発音時刻として使う。Web Audio クロックで
+      // 駆動するため setInterval/setTimeout の累積誤差を回避（drift 解消の核）。
+      const playBeat = (time) => {
+        // 1 小節 = curSig 拍。境界で sigSequence を進める
+        const beatInBar = _metroBeatIdx % curSig;
+        if (beatInBar === 0 && _metroBeatIdx > 0) {
+          // bar boundary
+          if (_sigSequence) {
+            _sigSeqStepBarCnt++;
+            if (_sigSeqStepBarCnt >= _sigSequence[_sigSeqStepIdx].bars) {
+              _sigSeqStepIdx = (_sigSeqStepIdx + 1) % _sigSequence.length;
+              _sigSeqStepBarCnt = 0;
+              curSig = _sigSequence[_sigSeqStepIdx].sig;
+              // DOM 操作は描画スレッドへ (Tone.Draw 経由) で audio thread block 回避
+              if (Tone.Draw && Tone.Draw.schedule) {
+                Tone.Draw.schedule(() => { try { metroBuildBeatDots(curSig); } catch(_){} }, time);
+              } else {
+                metroBuildBeatDots(curSig);
+              }
+            }
+          }
+        }
+        const idx = _metroBeatIdx % curSig;
+        const note = (idx === 0) ? 'C4' : 'C3';
+        // 音は audio クロック上の time でスケジュール
+        _metroSynth.trigger(note, '32n', time);
+        // ドット更新は描画スレッド（time に同期）
+        if (Tone.Draw && Tone.Draw.schedule) {
+          Tone.Draw.schedule(() => {
+            const dots = document.querySelectorAll('#metroBeatDots .beat-dot');
+            dots.forEach(d => d.classList.remove('on'));
+            if (dots[idx]) dots[idx].classList.add('on');
+          }, time);
+        } else {
+          const dots = document.querySelectorAll('#metroBeatDots .beat-dot');
+          dots.forEach(d => d.classList.remove('on'));
+          if (dots[idx]) dots[idx].classList.add('on');
+        }
+        // 期待時刻 = 開始から (_metroBeatIdx) * spb。マイク onset と比較するため記録
+        // performance.now と AudioContext.currentTime のズレは microtask 1 frame 内で許容
+        _metroLastBeatExpected = performance.now();
+        _metroBeatIdx++;
+      };
 
-    if (countIn) {
-      const spb = 60 / bpm;
-      for (let i=0;i<4;i++) {
-        setTimeout(()=>{
-          if (!_metroRunning && i > 0) return;
-          _metroSynth.trigger('A3', '32n');
-        }, i * spb * 1000);
-      }
-      _metroLoopId = setTimeout(()=> {
-        if (!_metroRunning) return;
-        Tone.Transport.scheduleRepeat((time) => playBeat(), '4n');
+      // v3.3.0r3 #2：演奏開始の瞬間に BPM をロック
+      _bpmLockedDuringPlay = true;
+      _setBpmInputsDisabled(true);
+      // ずれ取得用：マイクが既に走っていれば onset コールバックで driftPush するが、
+      // メトロ単独では onset 検出 stub として _metroLastBeatExpected を window 公開（外から接続用）
+      window.__steadyMetroBeatExpected = () => _metroLastBeatExpected;
+
+      // v3.3.0r3 hotfix complement（B-4）：lookAhead 0.1s 固定明示。
+      // Web Audio scheduling の look-ahead window を 100ms に固定し、スケジューラの
+      // 先読み量を JS イベントループ揺らぎより十分大きくして drift を遮断する。
+      Tone.Transport.lookAhead = 0.1;
+
+      if (countIn) {
+        // v3.3.0r3 hotfix complement（B-3）：countIn を AudioContext.currentTime ベースに統一。
+        // setTimeout の累積誤差ではなく Web Audio 時刻軸で 4 拍を予約し、Transport も
+        // その後の正確な時刻で start する（startAt 指定）。
+        const ctx = Tone.getContext().rawContext;
+        const spb = 60 / bpm;
+        const startAt = ctx.currentTime + 0.1; // lookAhead と整合する 0.1s 余裕
+        for (let i=0; i<4; i++) {
+          _metroSynth.trigger('A3', '32n', startAt + i * spb);
+        }
+        // 4 拍カウントイン後に Transport を起動（時刻指定 start で setTimeout 不要）
+        const transportStartAt = startAt + 4 * spb;
+        Tone.Transport.scheduleRepeat((time) => playBeat(time), '4n');
+        Tone.Transport.start(transportStartAt);
+        // _metroLoopId は legacy interface（metroStop の clearTimeout 経路は no-op で安全）
+        _metroLoopId = null;
+      } else {
+        Tone.Transport.scheduleRepeat((time) => playBeat(time), '4n');
         Tone.Transport.start();
-      }, 4 * 60/bpm * 1000);
-    } else {
-      Tone.Transport.scheduleRepeat((time) => playBeat(), '4n');
-      Tone.Transport.start();
+      }
+      _metroRunning = true;
+      if (btn) btn.textContent = 'STOP';
+    } finally {
+      if (btn) { btn.classList.remove('is-loading'); btn.style.pointerEvents = ''; }
     }
-    _metroRunning = true;
-    $('metroToggleBtn').textContent = 'STOP';
+  }
+  let _metroLastBeatExpected = 0;
+  function _setBpmInputsDisabled(disabled) {
+    ['metroBpmInput', 'metroBpmSlider', 'metroSig', 'metroSigSequence'].forEach(id => {
+      const el = $(id);
+      if (el) {
+        el.disabled = disabled;
+        el.style.opacity = disabled ? '0.5' : '';
+      }
+    });
   }
   function metroStop() {
     _metroRunning = false;
+    _bpmLockedDuringPlay = false;
+    _setBpmInputsDisabled(false);
     if (typeof Tone !== 'undefined') {
       try { Tone.Transport.stop(); Tone.Transport.cancel(0); } catch(_){}
     }
     if (_metroLoopId) { clearTimeout(_metroLoopId); _metroLoopId = null; }
+    if (_driftRaf) { cancelAnimationFrame(_driftRaf); _driftRaf = 0; }
     document.querySelectorAll('#metroBeatDots .beat-dot').forEach(d => d.classList.remove('on'));
     $('metroToggleBtn').textContent = 'START';
   }
+  // 公開：マイク onset 側からずれを push してもらう（既存 dojo onset hook と接続用）
+  window.__steadyDriftPush = function(driftMs) { try { driftPush(driftMs); } catch(_){} };
 
   // ----------------------------------------------------------
   // 13. 道場 — マイク I/O & 共通プランナ
@@ -2356,7 +2666,7 @@ main {
 
   async function trainBackbeat() {
     const bpm = parseInt($('tBbBpm').value,10) || 100;
-    // v3.3.0r2 RULE C-2：押引妖は decl=0 固定（ジャスト訓練のみ）。
+    // v3.3.0r3：グルーヴ妖は decl=0 固定（ジャスト訓練のみ）。
     // 旧仕様（前乗り/後ろ乗り申告 → 申告 vs 実測の乖離評価）は v3.4.0 応用版 backlog
     const decl = 0;
     const bars = parseInt($('tBbBars').value,10) || 8;
@@ -2369,7 +2679,7 @@ main {
     plan.forEach(p => dojoTimerPush(setTimeout(()=>{ synth && synth.trigger('C3','16n'); }, p.idealMs - performance.now())));
     const offset = getMicOffset();
     const onsets = [];
-    showOverlay('押引妖戦 — 2拍目・4拍目をジャストに叩いてください');
+    showOverlay('グルーヴ妖戦 — 2拍目・4拍目をクリックにぴたり噛ませてください');
     const micOk = await micStart((t) => onsets.push(t - offset));
     if (!micOk) { dojoTimerClearAll(); try{synth&&synth.dispose();}catch(_){} hideOverlay(); return; }
     let stopped = false;
@@ -2464,10 +2774,10 @@ main {
     const hits = [];
     if (/bpm|テンポ|速さ|速度|高速/.test(text) || /bpm/.test(t)) { w.endu += 3; w.maze += 1; hits.push('BPM/速さ → 持久龍を中盤に厚く配置'); }
     if (/16分|サブディビジョン|細|ﾊﾞﾗｰﾄﾞ|細かい|裏拍|16/.test(text)) { w.maze += 3; w.yore += 1; hits.push('16分系 → 層界主を後半山場に'); }
-    if (/グルーヴ|groove|押し|引き|乗り|ノリ|跳ね/.test(text) || /groove/.test(t)) { w.push += 3; w.runo += 1; hits.push('グルーヴ → 押引妖を中盤に'); }
+    if (/グルーヴ|groove|押し|引き|乗り|ノリ|跳ね/.test(text) || /groove/.test(t)) { w.push += 3; w.runo += 1; hits.push('グルーヴ → グルーヴ妖を中盤に'); }
     if (/持久|長時|キープ|安定|終盤/.test(text)) { w.endu += 2; hits.push('持久/キープ → 持久龍を仕上げに'); }
     if (/ジャスト|揺れ|よれ|タイム/.test(text)) { w.yore += 2; hits.push('タイム/ジャスト → よれモンを序盤に'); }
-    if (/ズラ|前ノリ|後ノリ|意図|押し引き/.test(text)) { w.runo += 2; w.push += 1; hits.push('意図的なズラし → 走り王と押引妖'); }
+    if (/ズラ|前ノリ|後ノリ|意図|押し引き/.test(text)) { w.runo += 2; w.push += 1; hits.push('意図的なズラし → 走り王とグルーヴ妖'); }
 
     // 重み降順で順序を確定
     const ordered = ENEMIES.slice().sort((a,b) => w[b.id] - w[a.id]);
@@ -2532,7 +2842,7 @@ main {
         // 週インデックスを LS に記憶（次の撃破で該当週が更新される）
         try { lsSet('steady_quest_current_week_v3_1', widx); } catch(_){}
         // 道場の妖怪退治セグへ移動して該当カードを開く
-        switchTab('dojo'); switchSeg('hunt');
+        switchTab('dojo'); switchSeg('quest');
         setTimeout(() => {
           const card = document.querySelector('[data-enemy="' + id + '"]');
           if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -2600,7 +2910,9 @@ main {
     const sel = $('rudiSel').value;
     const r = RUDIMENTS[sel] || RUDIMENTS.single;
     const bpm = parseInt($('rudiBpm').value, 10) || 80;
-    Tone.Transport.bpm.value = bpm;
+    // v3.3.0r3 #2：rudi START 中は metro と独立だが bpm.value 代入は同 ガード経由で統一
+    if (typeof safeSetTransportBpm === 'function') safeSetTransportBpm(bpm);
+    else Tone.Transport.bpm.value = bpm;
     $('rudiHint').textContent = r.label + '：' + r.pattern;
     const subdiv = (r.perBeat === 2) ? '8n' : '4n';
     Tone.Transport.scheduleRepeat((time) => { _rudiSynth && _rudiSynth.trigger('C3', '16n'); }, subdiv);
@@ -2817,8 +3129,7 @@ main {
   // 23. タブ・セグメント切替
   // ----------------------------------------------------------
   function switchTab(name) {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
-    // v3.3.0r2：下部タブも active 状態を同期
+    // v3.3.0r3 #1：上部タブ削除済。下部タブのみ active 同期
     document.querySelectorAll('.bottom-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + name));
     if (name === 'game') { renderGameMetrics(); renderGameChart(); renderDexList(); renderPracticeLookback(); }
@@ -2847,8 +3158,7 @@ main {
   }
 
   function bindEvents() {
-    document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
-    // v3.3.0r2：下部タブ（bottom-tabs）も同 switchTab に結線（既存上部 .tabs と並走）
+    // v3.3.0r3 #1：上部タブ削除済。下部タブ（bottom-tab-btn）のみで switchTab 起動
     document.querySelectorAll('.bottom-tab-btn').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
     // v3.3.0r2：HUD タップ・モーダル閉じる
     const hud = $('level-hud');
@@ -2873,7 +3183,7 @@ main {
     // HOME — 今日の挑戦
     $('homeFightBtn').addEventListener('click', () => {
       const id = $('homeFightBtn').dataset.enemy || 'yore';
-      switchTab('dojo'); switchSeg('hunt');
+      switchTab('dojo'); switchSeg('quest');
       const card = document.querySelector('[data-enemy="' + id + '"]');
       if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
@@ -2907,11 +3217,30 @@ main {
       showToast('冒険ルートを生成しました', 3000);
     });
 
-    // 基礎修行
-    $('rudiToggleBtn').addEventListener('click', rudiToggle);
-
-    // 訓練（タップ）
-    $('tapStartBtn').addEventListener('click', tapStart);
+    // v3.3.0r3 #3：訓練系 START の 250ms debounce ＋視覚 disabled 化
+    function debounceStart(btn, fn) {
+      let _last = 0;
+      btn.addEventListener('click', async (e) => {
+        const now = Date.now();
+        if (now - _last < 250) return;
+        _last = now;
+        btn.classList.add('is-loading');
+        btn.style.pointerEvents = 'none';
+        btn.style.opacity = '0.6';
+        try { await fn(e); }
+        finally {
+          setTimeout(() => {
+            btn.classList.remove('is-loading');
+            btn.style.pointerEvents = '';
+            btn.style.opacity = '';
+          }, 250);
+        }
+      });
+    }
+    // 基礎修行 START（debounce）
+    debounceStart($('rudiToggleBtn'), rudiToggle);
+    // 訓練（タップ）START（debounce）
+    debounceStart($('tapStartBtn'), tapStart);
 
     // 書庫（旧設定）
     $('setNotifyBtn').addEventListener('click', askNotify);
@@ -3155,7 +3484,7 @@ main {
     },
     {
       title: '冒険ルートで 12週計画',
-      body: '3か月後にどうなりたい？を入力すると、5機能の優先順位が並びます。<div class="ex">例：「16分のグルーヴを上げたい BPM160 で安定」と入れると、層界主と押引妖が前半に並びます。<br>「冒険ルートを生成してみる」で道場タブへ移動・例文がプレフィルされます。</div>',
+      body: '3か月後にどうなりたい？を入力すると、5機能の優先順位が並びます。<div class="ex">例：「16分のグルーヴを上げたい BPM160 で安定」と入れると、層界主とグルーヴ妖が前半に並びます。<br>「冒険ルートを生成してみる」で道場タブへ移動・例文がプレフィルされます。</div>',
       action: 'questDemo'
     },
     {
@@ -3254,7 +3583,7 @@ main {
       }, 200);
     } else if (action === 'click24Demo') {
       tutorialClose(false);
-      switchTab('dojo'); switchSeg('hunt');
+      switchTab('dojo'); switchSeg('quest');
       setTimeout(() => {
         const t24 = $('t24Bpm'); if (t24) t24.value = 100;
         const t24b = $('t24Bars'); if (t24b) t24b.value = 8;
@@ -3284,10 +3613,12 @@ main {
   function metroSendToBattle() {
     const bpm = parseInt($('metroBpmInput').value, 10) || 100;
     const sig = parseInt($('metroSig').value, 10) || 4;
-    lsSet(LS.NEXT_BATTLE_BPM, { bpm, sig, sentAt: Date.now() });
-    $('metroNextBattleHint').textContent = '次回戦闘設定：' + bpm + ' BPM / ' + sig + '拍子（道場の妖怪戦に自動反映）';
+    lsSet(LS.NEXT_BATTLE_BPM, { bpm, sig, sentAt: Date.now(), source: 'manual' });
+    // v3.3.0r3 #9：ユーザーが手動 BPM 設定したら desirable difficulty 自動調整を停止
+    try { ddMarkUserOverride(); } catch(_){}
+    $('metroNextBattleHint').textContent = '次回戦闘設定：' + bpm + ' BPM / ' + sig + '拍子（道場の妖怪戦に自動反映 ／ 自動 BPM 調整は停止中）';
     try { logFeatureUse('metro_to_dojo_link'); } catch(_){}
-    showToast(bpm + ' BPM で次回戦闘を組みました。道場へどうぞ', 3500, () => { switchTab('dojo'); switchSeg('hunt'); });
+    showToast(bpm + ' BPM で次回戦闘を組みました。道場へどうぞ', 3500, () => { switchTab('dojo'); switchSeg('quest'); });
   }
   function refreshMetroNextBattleHint() {
     const nb = lsGet(LS.NEXT_BATTLE_BPM, null);
@@ -3311,7 +3642,7 @@ main {
     try { logFeatureUse('ikki_kake_start'); } catch(_){}
     showToast('五体一気駆け 開始：30秒戦×5本（休憩10秒）', 3500);
     // 道場タブの妖怪退治セグへ移動（戦闘オーバーレイがそこから出る前提）
-    switchTab('dojo'); switchSeg('hunt');
+    switchTab('dojo'); switchSeg('quest');
     await new Promise(r => setTimeout(r, 300));
     for (let i = 0; i < ENEMIES.length; i++) {
       if (_ikkiState.aborted) break;
@@ -3565,9 +3896,9 @@ main {
   const KAIDAN = [
     { ch: 1,   days: 1,   text: '初日。メトロの鼓動に手を合わせた。最初の妖怪は「揺らぎ」。1拍3拍に居るらしい。' },
     { ch: 2,   days: 3,   text: '3日目。1&3 のクセが見えた。次は 2&4 を主役に置いてみる。' },
-    { ch: 3,   days: 7,   text: '1週間。手首が覚え始める。腕の力が抜けて、音だけが残る感覚。' },
+    { ch: 3,   days: 7,   text: '1週間。音だけが残る感覚。クリックの跳ね返りに身体がぴたり乗ってきた。' },
     { ch: 4,   days: 14,  text: '2週間。100小節通せた日があった。終盤の集中が鍵。持久龍が薄く笑った気がする。' },
-    { ch: 5,   days: 30,  text: '1か月。バックビートを動かすコツが掴めてきた。押引妖はもう怖くない。' },
+    { ch: 5,   days: 30,  text: '1か月。バックビートを動かすコツが掴めてきた。グルーヴ妖はもう怖くない。' },
     { ch: 6,   days: 100, text: '100日。5階層の迷宮を抜けた。タイム感は身体に書き込まれている。' }
   ];
 
@@ -3688,7 +4019,9 @@ main {
 
   // ----------------------------------------------------------
   // v3.1.1 メトロ音色：click(default,NoiseSynth+BPF) / cowbell(MetalSynth) / mokugyo / taiko(MembraneSynth)
-  // 戻り値共通 IF: { trigger(note,dur), setVolume(db), dispose(), kind }
+  // 戻り値共通 IF: { trigger(note,dur,time?), setVolume(db), dispose(), kind }
+  //   v3.3.0r3 hotfix complement：trigger 第3引数 time（AudioContext.currentTime 基準秒）を受け
+  //   triggerAttackRelease の 3rd arg にスケジュール時刻として渡す。time 省略時は従来通り即時発音。
   // ----------------------------------------------------------
   function buildClickSynth(soundType) {
     if (typeof Tone === 'undefined') return null;
@@ -3697,7 +4030,7 @@ main {
     if (t === 'cowbell') {
       const m = new Tone.MetalSynth({ envelope: { attack: 0.001, decay: 0.05, release: 0.01 }, harmonicity: 5.1, modulationIndex: 32, resonance: 4000, octaves: 1.5 }).toDestination();
       return { kind:'cowbell',
-        trigger:(n,d)=>{ try{ m.triggerAttackRelease(n||'C5', d||'32n'); }catch(_){} },
+        trigger:(n,d,time)=>{ try{ if (time != null) m.triggerAttackRelease(n||'C5', d||'32n', time); else m.triggerAttackRelease(n||'C5', d||'32n'); }catch(_){} },
         setVolume:(db)=>{ try{ m.volume.value = db; }catch(_){} },
         dispose:()=>{ try{ m.dispose(); }catch(_){} } };
     }
@@ -3707,7 +4040,7 @@ main {
         : { pitchDecay: 0.05, octaves: 6, oscillator: { type: 'sine' }, envelope: { attack: 0.001, decay: 0.4, sustain: 0, release: 0.1 } };
       const k = new Tone.MembraneSynth(opts).toDestination();
       return { kind:t,
-        trigger:(n,d)=>{ try{ k.triggerAttackRelease(n||'C3', d||'32n'); }catch(_){} },
+        trigger:(n,d,time)=>{ try{ if (time != null) k.triggerAttackRelease(n||'C3', d||'32n', time); else k.triggerAttackRelease(n||'C3', d||'32n'); }catch(_){} },
         setVolume:(db)=>{ try{ k.volume.value = db; }catch(_){} },
         dispose:()=>{ try{ k.dispose(); }catch(_){} } };
     }
@@ -3716,7 +4049,7 @@ main {
     const bpf = new Tone.Filter({ type: 'bandpass', frequency: 4000, Q: 4 });
     noise.connect(bpf); bpf.toDestination();
     return { kind:'click',
-      trigger:(n,d)=>{ try{ noise.triggerAttackRelease(d||'32n'); }catch(_){} }, // NoiseSynth は音高なし
+      trigger:(n,d,time)=>{ try{ if (time != null) noise.triggerAttackRelease(d||'32n', time); else noise.triggerAttackRelease(d||'32n'); }catch(_){} }, // NoiseSynth は音高なし
       setVolume:(db)=>{ try{ noise.volume.value = db; }catch(_){} },
       dispose:()=>{ try{ noise.dispose(); bpf.dispose(); }catch(_){} } };
   }
@@ -3859,11 +4192,11 @@ main {
       $('setCalibStatus').textContent = '較正済み：オフセット ' + off.offsetMs.toFixed(1) + ' ms';
     }
 
-    // SW 登録（v3.1.1 にバンプ）
+    // SW 登録（v3.3.0r3 にバンプ）
     try {
       if ('serviceWorker' in navigator) {
         const swCode = `
-          const CACHE = 'steady-v3.3.0r2';
+          const CACHE = 'steady-v3.3.0r3';
           const URLS = ['./', './steady.html', './vendor/tone.js', './vendor/chart.js'];
           self.addEventListener('install', (e) => {
             e.waitUntil(caches.open(CACHE).then(c => c.addAll(URLS).catch(()=>{})));
@@ -3889,12 +4222,12 @@ main {
           });
         `;
         const blob = new Blob([swCode], { type: 'application/javascript' });
-        const swUrl = URL.createObjectURL(blob) + '?v=3.3.0r2';
+        const swUrl = URL.createObjectURL(blob) + '?v=3.3.0r3';
         navigator.serviceWorker.register(swUrl).catch(err => { if (window.STEADY_DEBUG) console.warn('SW register failed:', err); });
       }
     } catch (_) { /* noop */ }
 
-    if (window.STEADY_DEBUG) console.log('STEADY DOJO QUEST v3.3.0r2 ready (UI redesign 8色／下部タブ5／HUD sticky／メトロ音量90／押引妖tight／耳訓練削除)');
+    if (window.STEADY_DEBUG) console.log('STEADY DOJO QUEST v3.3.0r3 ready (上部タブ削除／BPM 不変ガード／メトロずれ視覚化／拍子 sequence／AutoBattle 一択／外的注意コピー／遅延 FB／desirable difficulty)');
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
