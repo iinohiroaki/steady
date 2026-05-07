@@ -63,6 +63,27 @@
   --muted: #6b7280;
   --danger: #dc2626; /* 機能カラー：破壊的操作（全データ削除・STOP）専用。視覚言語2色宣言の例外。 */
   --maxw: 720px;
+
+  /* ============================================================
+     v3.3.0r2 配色 8 色（mobile RPG リサーチ v3 統合・AL012 GO 91/100）
+     - 硬派 5 色：bg/fg/success/warning/muted
+     - 派手 3 色：rare-gold / rare-rainbow（gradient）/ attr-* 6 種
+     - 画面別運用：HOME/METRO/書庫=硬派 5 のみ、GAME=金解禁、ガチャ=全色
+     - 既存 --accent / --text / --bg 等は破壊禁止・新変数で並設
+     ============================================================ */
+  --c-bg: #FFFFFF;
+  --c-fg: #1A1A1A;
+  --c-success: #2E7D5C;
+  --c-warning: #D32F2F;
+  --c-muted: #757575;
+  --c-rare-gold: #FFD700;
+  --c-rare-rainbow: linear-gradient(135deg, #FF6B6B 0%, #FFE66D 25%, #4ECDC4 50%, #95E1D3 75%, #C7B8EA 100%);
+  --c-attr-fire:    #FF4500;
+  --c-attr-water:   #1E90FF;
+  --c-attr-wind:    #98D982;
+  --c-attr-earth:   #8B6F47;
+  --c-attr-thunder: #FFC107;
+  --c-attr-dark:    #4A2C5A;
 }
 body.dark {
   --accent: #8b7afa;
@@ -71,6 +92,10 @@ body.dark {
   --surface: #1a1a22;
   --border: #2a2a35;
   --muted: #9ca3af;
+  /* dark theme：硬派系の bg/fg のみ反転、success/warning/rare 系は同色 */
+  --c-bg: #0F0F12;
+  --c-fg: #F3F4F6;
+  --c-muted: #9CA3AF;
 }
 * { box-sizing: border-box; }
 html, body {
@@ -521,9 +546,156 @@ textarea { width: 100%; min-height: 60px; resize: vertical; }
   font-size: 0.88rem;
 }
 .kuse-summary li { margin: 4px 0; }
+
+/* ============================================================
+   v3.3.0r2 レベル HUD（全タブ上部固定 sticky bar・受入条件 A-1〜A-5）
+   ============================================================ */
+.level-hud {
+  position: sticky; top: 0; z-index: 60;
+  display: flex; align-items: center; gap: 12px;
+  height: 40px; padding: 4px 12px;
+  padding-top: calc(4px + env(safe-area-inset-top, 0px));
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.85rem; line-height: 1.2;
+  cursor: pointer; user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.level-hud:active { background: var(--surface); }
+.level-hud .hud-cell {
+  display: flex; align-items: center; gap: 4px;
+  white-space: nowrap;
+}
+.level-hud .hud-ico { font-size: 1rem; }
+.level-hud .hud-val {
+  font-weight: 700; font-variant-numeric: tabular-nums;
+  color: var(--c-fg, var(--text));
+}
+.level-hud .hud-xp-wrap { flex: 1 1 auto; min-width: 60px; }
+.level-hud .hud-xp-bar {
+  height: 6px; background: var(--border);
+  border-radius: 3px; overflow: hidden; min-width: 40px;
+}
+.level-hud .hud-xp-fill {
+  height: 100%; background: var(--accent);
+  transition: width 0.3s; width: 0%;
+}
+.level-hud .hud-xp-text { font-size: 0.72rem; color: var(--muted); margin-top: 1px; }
+
+/* レベル詳細モーダル（GAME タブで HUD タップ時） */
+.hud-modal {
+  position: fixed; inset: 0; z-index: 400;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.6); padding: 16px;
+}
+.hud-modal.show { display: flex; }
+.hud-modal-card {
+  background: var(--bg); color: var(--text);
+  border: 2px solid var(--accent); border-radius: 12px;
+  max-width: 420px; width: 100%; padding: 20px;
+  max-height: 88vh; overflow-y: auto;
+}
+.hud-modal-title { font-size: 1.1rem; font-weight: 700; margin: 0 0 12px; }
+.hud-modal-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 0.92rem; }
+.hud-modal-row:last-child { border-bottom: none; }
+.hud-modal-actions { margin-top: 14px; display: flex; gap: 8px; }
+.hud-modal-actions button { flex: 1 1 auto; }
+
+/* ============================================================
+   v3.3.0r2 下部タブ 5（Persona 5 風赤面ハイライト・48dp 以上・iOS safe area）
+   ============================================================ */
+.bottom-tabs {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 55;
+  display: flex; gap: 0;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.bottom-tab-btn {
+  flex: 1 1 0;
+  min-height: 56px;
+  background: transparent;
+  color: var(--muted);
+  border: none;
+  cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px;
+  padding: 6px 4px;
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.12s, color 0.12s;
+}
+.bottom-tab-btn .bt-ico {
+  font-size: 1.4rem; line-height: 1;
+}
+.bottom-tab-btn .bt-label {
+  font-size: clamp(10px, 2.5vw, 12px);
+  font-weight: 600; line-height: 1;
+}
+.bottom-tab-btn:hover { color: var(--text); }
+.bottom-tab-btn.active {
+  background: var(--c-warning);
+  color: var(--c-bg);
+}
+.bottom-tab-btn.active .bt-ico,
+.bottom-tab-btn.active .bt-label { color: var(--c-bg); }
+
+/* main の下マージンを bottom-tabs 高さ分確保 */
+main {
+  padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+}
+
+@media (max-width: 480px) {
+  .level-hud { font-size: 0.8rem; gap: 8px; padding: 4px 10px; padding-top: calc(4px + env(safe-area-inset-top, 0px)); }
+  .level-hud .hud-cell { gap: 3px; }
+}
 </style>
 </head>
 <body>
+
+<!-- ============================================================
+     v3.3.0r2 レベル HUD（全タブ上部固定・受入条件 A-1〜A-5）
+     - クリック挙動：他タブ滞在時は GAME タブへ遷移／GAME タブ滞在時はモーダル
+     - 表示要素：⚡ Lv / ✨ XP プログレス / ⭐ 撃破証 / 🔥 連戦
+     ============================================================ -->
+<div id="level-hud" class="level-hud" role="button" tabindex="0" aria-label="レベル詳細を開く">
+  <div class="hud-cell" aria-label="レベル">
+    <span class="hud-ico" aria-hidden="true">⚡</span>
+    <span class="hud-val" id="hudLv">1</span>
+  </div>
+  <div class="hud-cell hud-xp-wrap" aria-label="XP プログレス">
+    <span class="hud-ico" aria-hidden="true">✨</span>
+    <div style="flex:1 1 auto; min-width:0;">
+      <div class="hud-xp-bar"><div class="hud-xp-fill" id="hudXpBar"></div></div>
+      <div class="hud-xp-text"><span id="hudXpInto">0</span>/<span id="hudXpNeed">100</span></div>
+    </div>
+  </div>
+  <div class="hud-cell" aria-label="撃破証">
+    <span class="hud-ico" aria-hidden="true">⭐</span>
+    <span class="hud-val" id="hudStar">0</span>
+  </div>
+  <div class="hud-cell" aria-label="連戦">
+    <span class="hud-ico" aria-hidden="true">🔥</span>
+    <span class="hud-val" id="hudStreak">0</span>
+  </div>
+</div>
+
+<!-- レベル詳細モーダル（GAME タブで HUD タップ時表示） -->
+<div id="hud-level-detail-modal" class="hud-modal" role="dialog" aria-modal="true" aria-labelledby="hudModalTitle" aria-hidden="true">
+  <div class="hud-modal-card">
+    <h3 id="hudModalTitle" class="hud-modal-title">⚡ レベル詳細</h3>
+    <div class="hud-modal-row"><span>現在 Lv</span><span id="hudModalLv" class="hud-val">1</span></div>
+    <div class="hud-modal-row"><span>累計 XP</span><span id="hudModalXp" class="hud-val">0</span></div>
+    <div class="hud-modal-row"><span>このレベル到達 XP</span><span id="hudModalInto" class="hud-val">0</span></div>
+    <div class="hud-modal-row"><span>次レベルまで残り</span><span id="hudModalRemain" class="hud-val">100</span></div>
+    <div class="hud-modal-row"><span>装備強化倍率</span><span id="hudModalMult" class="hud-val">×1.0</span></div>
+    <div class="hud-modal-row"><span>連戦数</span><span id="hudModalStreak" class="hud-val">0</span></div>
+    <div class="hud-modal-row"><span>撃破証 ⭐</span><span id="hudModalStar" class="hud-val">0</span></div>
+    <div class="hud-modal-actions">
+      <button id="hudModalCloseBtn" class="btn-secondary" type="button">閉じる</button>
+    </div>
+  </div>
+</div>
 
 <header>
   <div class="brand">
@@ -630,7 +802,7 @@ textarea { width: 100%; min-height: 60px; resize: vertical; }
         <option value="6">6/8</option>
       </select>
       <label class="field" for="metroVol" style="margin-left:12px;">音量</label>
-      <input type="range" id="metroVol" min="0" max="100" value="70" style="width:120px;">
+      <input type="range" id="metroVol" min="0" max="100" value="90" style="width:120px;">
       <label class="field" style="margin-left:12px;">
         <input type="checkbox" id="metroCountIn" checked> カウントイン
       </label>
@@ -953,6 +1125,30 @@ textarea { width: 100%; min-height: 60px; resize: vertical; }
 
 </main>
 
+<!-- ============================================================
+     v3.3.0r2 下部タブ 5（HOME 🏠 / METRO 🥁 / 道場 ⛩ / GAME ⚔ / 書庫 📚）
+     - 既存の上部 .tabs と二系統並走（既存破壊禁止・data-tab 同一値で連動）
+     - 選択時：背景 var(--c-warning) ハイライト＋文字反転（Persona 5 模倣）
+     - タップ 48dp 以上・iOS safe-area 対応
+     ============================================================ -->
+<nav class="bottom-tabs" role="tablist" aria-label="主要タブ（下部）">
+  <button class="bottom-tab-btn active" data-tab="home" type="button" aria-label="ホーム">
+    <span class="bt-ico" aria-hidden="true">🏠</span><span class="bt-label">ホーム</span>
+  </button>
+  <button class="bottom-tab-btn" data-tab="metro" type="button" aria-label="メトロ">
+    <span class="bt-ico" aria-hidden="true">🥁</span><span class="bt-label">メトロ</span>
+  </button>
+  <button class="bottom-tab-btn" data-tab="dojo" type="button" aria-label="道場">
+    <span class="bt-ico" aria-hidden="true">⛩</span><span class="bt-label">道場</span>
+  </button>
+  <button class="bottom-tab-btn" data-tab="game" type="button" aria-label="バトル">
+    <span class="bt-ico" aria-hidden="true">⚔</span><span class="bt-label">バトル</span>
+  </button>
+  <button class="bottom-tab-btn" data-tab="library" type="button" aria-label="書庫">
+    <span class="bt-ico" aria-hidden="true">📚</span><span class="bt-label">書庫</span>
+  </button>
+</nav>
+
 <!-- アクティブセッション中のオーバーレイ -->
 <div id="trainOverlay" class="overlay" aria-hidden="true">
   <div class="big-num" id="trainOverlayNum">—</div>
@@ -1058,7 +1254,11 @@ textarea { width: 100%; min-height: 60px; resize: vertical; }
     // ----- v3.1.1 hotfix 新設キー -----
     V3_1_1_MIGRATED:  'steady_v3_1_1_migrated',   // v3.1.1 migration フラグ
     USAGE_LOG:        'steady_usage_log_v3_1_1',  // 7本柱使用ログ（dead化判定用）
-    SILENT_SW_WARNED: 'steady_silent_switch_warned_v3_1_1' // iOS silent switch 警告 1回限りフラグ
+    SILENT_SW_WARNED: 'steady_silent_switch_warned_v3_1_1', // iOS silent switch 警告 1回限りフラグ
+    // ----- v3.3.0r2 新設キー -----
+    METRO_VOL:               'steady_metro_vol',                  // メトロ音量（0-100・既存ユーザー値尊重）
+    METRO_VOL_V3_TOAST_SHOWN:'steady_metro_vol_v3_toast_shown',  // v3.3.0r2 初回起動トースト表示済みフラグ
+    SCHEMA_VERSION:          'steady_schema_version'              // schema 移行 bump 用（最新 = 3）
   };
 
   // ----------------------------------------------------------
@@ -1175,13 +1375,14 @@ textarea { width: 100%; min-height: 60px; resize: vertical; }
     },
     {
       id: 'push', name: '押引妖', train: 'backbeat',
-      line: '申告通り押し引きできるか試す妖（あやかし）',
-      profile: 'バックビートを動かそうとする者を試す妖。「+10ms押す」「-15ms引く」と申告した値と実測の乖離が小さいほど成仏する。',
+      // v3.3.0r2 RULE C-3：UI コピーをジャスト訓練に統一（応用版は v3.4.0 backlog）
+      line: 'ジャストにバックビートを刻んでください',
+      profile: 'バックビートを揺らそうとする者を試す妖。2拍目・4拍目をジャストに叩き、ズレの絶対値が小さいほど成仏する。前乗り/後ろ乗りの応用は道場主に成った後で。',
       tip: '裏拍を等間隔で並べる意識',
       bronze: 88, silver: 93, gold: 96,
       weakness: 'maze',
       weaknessReason: '層界主の解像度がグルーヴに余裕を与える',
-      meaning: '銅 88 = 申告との乖離 ≤ 12ms ／ 銀 93 = ≤ 7ms ／ 金 96 = ≤ 4ms',
+      meaning: '銅 88 = ジャストからのズレ ≤ 12ms ／ 銀 93 = ≤ 7ms ／ 金 96 = ≤ 4ms',
       svg: '<svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><path d="M30 8 C20 8 12 16 12 26 C12 34 16 40 22 44 L22 50 L26 48 L30 52 L34 48 L38 50 L38 44 C44 40 48 34 48 26 C48 16 40 8 30 8 Z M16 22 L22 28 L16 34 Z M44 22 L38 28 L44 34 Z" fill-rule="evenodd"/></svg>'
     },
     {
@@ -1593,7 +1794,7 @@ textarea { width: 100%; min-height: 60px; resize: vertical; }
     if (e.id === 'yore')  return '必勝：スコア ≥ ' + e.bronze + '（平均誤差・SDが小さいほど良）';
     if (e.id === 'runo')  return '必勝：スコア ≥ ' + e.bronze + '（4小節サイクル申告差 |平均| 小）';
     if (e.id === 'endu')  return '必勝：スコア ≥ ' + e.bronze + '（100小節 SD ≤12ms）';
-    if (e.id === 'push')  return '必勝：スコア ≥ ' + e.bronze + '（申告と実測の乖離 ≤8ms）';
+    if (e.id === 'push')  return '必勝：スコア ≥ ' + e.bronze + '（ジャストからのズレ ≤8ms）';
     if (e.id === 'maze')  return '必勝：スコア ≥ ' + e.bronze + '（5層全平均）';
     return '必勝：スコア ≥ ' + e.bronze;
   }
@@ -1630,6 +1831,67 @@ textarea { width: 100%; min-height: 60px; resize: vertical; }
     const pct = lvInfo.need > 0 ? Math.min(100, Math.floor(lvInfo.into / lvInfo.need * 100)) : 0;
     $('gameXpBar').style.width = pct + '%';
     $('gameStreak').textContent = String(calcStreak(loadLogs()));
+    // v3.3.0r2 RULE A-3：HUD 値も同期更新（addXp / applyBattleResult 経由で常時最新化）
+    try {
+      const streak = calcStreak(loadLogs());
+      const hudLv = $('hudLv'); if (hudLv) hudLv.textContent = String(lvInfo.lv);
+      const hudInto = $('hudXpInto'); if (hudInto) hudInto.textContent = String(lvInfo.into);
+      const hudNeed = $('hudXpNeed'); if (hudNeed) hudNeed.textContent = String(lvInfo.need);
+      const hudXpBar = $('hudXpBar'); if (hudXpBar) hudXpBar.style.width = pct + '%';
+      const hudStar = $('hudStar'); if (hudStar) hudStar.textContent = String(g.starCount);
+      const hudStreak = $('hudStreak'); if (hudStreak) hudStreak.textContent = String(streak);
+    } catch(_){}
+  }
+
+  // ----------------------------------------------------------
+  // v3.3.0r2 HUD タップ挙動 ＋ レベル詳細モーダル（受入条件 A-5）
+  // - 他タブ（HOME/METRO/道場/書庫）滞在時：GAME タブへ遷移
+  // - GAME タブ滞在時：レベル詳細モーダルを開く
+  // ----------------------------------------------------------
+  function getActiveTabName() {
+    const active = document.querySelector('.tab-panel.active');
+    if (!active) return 'home';
+    const id = active.id || ''; // 'tab-home' / 'tab-game' etc
+    return id.replace(/^tab-/, '') || 'home';
+  }
+
+  function openHudLevelDetailModal() {
+    const g = loadGame();
+    const lvInfo = calcLevel(g.xp);
+    const remain = Math.max(0, lvInfo.need - lvInfo.into);
+    // 装備強化倍率：道場主 Lv に応じた緩やかな成長係数（暫定値・将来 GAME バトル計算と統合）
+    const mult = (1 + (lvInfo.lv - 1) * 0.05).toFixed(2);
+    const streak = calcStreak(loadLogs());
+    const set = (id, val) => { const el = $(id); if (el) el.textContent = String(val); };
+    set('hudModalLv', lvInfo.lv);
+    set('hudModalXp', g.xp);
+    set('hudModalInto', lvInfo.into);
+    set('hudModalRemain', remain);
+    set('hudModalMult', '×' + mult);
+    set('hudModalStreak', streak);
+    set('hudModalStar', g.starCount);
+    const m = $('hud-level-detail-modal');
+    if (m) {
+      m.classList.add('show');
+      m.setAttribute('aria-hidden', 'false');
+    }
+  }
+
+  function closeHudLevelDetailModal() {
+    const m = $('hud-level-detail-modal');
+    if (m) {
+      m.classList.remove('show');
+      m.setAttribute('aria-hidden', 'true');
+    }
+  }
+
+  function onHudTap() {
+    const tab = getActiveTabName();
+    if (tab === 'game') {
+      openHudLevelDetailModal();
+    } else {
+      try { switchTab('game'); } catch(_){}
+    }
   }
 
   // ----------------------------------------------------------
@@ -1707,8 +1969,9 @@ textarea { width: 100%; min-height: 60px; resize: vertical; }
     if (id === 'push') return `
       <div class="row" style="margin-top:10px;">
         <label class="field">BPM <input type="number" id="tBbBpm" min="60" max="180" value="100"></label>
-        <label class="field">申告ms <input type="number" id="tBbDecl" min="-30" max="30" value="0"></label>
         <label class="field">小節 <input type="number" id="tBbBars" min="2" max="32" value="8"></label>
+        <!-- v3.3.0r2 RULE C-1：申告ms 入力は非表示・常に 0（ジャスト訓練のみ）。応用版（前乗り/後ろ乗り選択）は v3.4.0 backlog -->
+        <input type="hidden" id="tBbDecl" value="0" aria-hidden="true">
       </div>`;
     if (id === 'maze') return `
       <div class="row" style="margin-top:10px;">
@@ -1812,7 +2075,10 @@ textarea { width: 100%; min-height: 60px; resize: vertical; }
     await Tone.start();
     if (!_metroSynth) _metroSynth = buildClickSynth();
     if (!_metroSynth) { showToast('シンセ生成失敗', 3000); return; }
-    const vol = parseInt($('metroVol').value, 10) / 100;
+    // v3.3.0r2 RULE B-3：vol 0-100 → 0-1.5 リニア（ceiling 1.5・過大歪み回避クランプ）
+    // 旧仕様（ceiling 1.0）は db = 20*log10(vol/100) で 100=0dB 上限、新仕様は 100=+3.5dB 程度
+    const volRaw = parseInt($('metroVol').value, 10) / 100;
+    const vol = Math.max(0, Math.min(1.5, volRaw * 1.5));
     const db = (vol > 0) ? (20 * Math.log10(vol)) : -60;
     if (_metroSynth.setVolume) _metroSynth.setVolume(db);
     const bpm = metroSetBpm($('metroBpmInput').value);
@@ -2090,7 +2356,9 @@ textarea { width: 100%; min-height: 60px; resize: vertical; }
 
   async function trainBackbeat() {
     const bpm = parseInt($('tBbBpm').value,10) || 100;
-    const decl = parseFloat($('tBbDecl').value) || 0;
+    // v3.3.0r2 RULE C-2：押引妖は decl=0 固定（ジャスト訓練のみ）。
+    // 旧仕様（前乗り/後ろ乗り申告 → 申告 vs 実測の乖離評価）は v3.4.0 応用版 backlog
+    const decl = 0;
     const bars = parseInt($('tBbBars').value,10) || 8;
     if (typeof Tone === 'undefined') return;
     if (!(await ensureAudioContext())) return;
@@ -2101,7 +2369,7 @@ textarea { width: 100%; min-height: 60px; resize: vertical; }
     plan.forEach(p => dojoTimerPush(setTimeout(()=>{ synth && synth.trigger('C3','16n'); }, p.idealMs - performance.now())));
     const offset = getMicOffset();
     const onsets = [];
-    showOverlay('押引妖戦 — 2&4を申告した分ズラしてください');
+    showOverlay('押引妖戦 — 2拍目・4拍目をジャストに叩いてください');
     const micOk = await micStart((t) => onsets.push(t - offset));
     if (!micOk) { dojoTimerClearAll(); try{synth&&synth.dispose();}catch(_){} hideOverlay(); return; }
     let stopped = false;
@@ -2120,7 +2388,7 @@ textarea { width: 100%; min-height: 60px; resize: vertical; }
       const actual = diffs.length ? diffs.reduce((a,c)=>a+c,0)/diffs.length : 0;
       const dev = actual - decl;
       const score = Math.max(0, 100 - Math.abs(dev));
-      const rb = $(huntResultId('push')); if (rb) rb.innerHTML = '申告 ' + decl.toFixed(1) + ' / 実測 ' + actual.toFixed(1) + ' / 乖離 ' + dev.toFixed(1) + ' ms / スコア ' + score.toFixed(0);
+      const rb = $(huntResultId('push')); if (rb) rb.innerHTML = 'ジャストからのズレ ' + dev.toFixed(1) + ' ms / スコア ' + score.toFixed(0);
       logKpi('backbeat', { bpm, decl, actual, dev, score });
       applyBattleResult('push', score);
     }
@@ -2550,6 +2818,8 @@ textarea { width: 100%; min-height: 60px; resize: vertical; }
   // ----------------------------------------------------------
   function switchTab(name) {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+    // v3.3.0r2：下部タブも active 状態を同期
+    document.querySelectorAll('.bottom-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + name));
     if (name === 'game') { renderGameMetrics(); renderGameChart(); renderDexList(); renderPracticeLookback(); }
     if (name === 'home') { renderHome(); renderHomeStreak(); renderHomeIkkiRecord(); }
@@ -2578,6 +2848,24 @@ textarea { width: 100%; min-height: 60px; resize: vertical; }
 
   function bindEvents() {
     document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+    // v3.3.0r2：下部タブ（bottom-tabs）も同 switchTab に結線（既存上部 .tabs と並走）
+    document.querySelectorAll('.bottom-tab-btn').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+    // v3.3.0r2：HUD タップ・モーダル閉じる
+    const hud = $('level-hud');
+    if (hud) {
+      hud.addEventListener('click', onHudTap);
+      hud.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); onHudTap(); }
+      });
+    }
+    const hudModalCloseBtn = $('hudModalCloseBtn');
+    if (hudModalCloseBtn) hudModalCloseBtn.addEventListener('click', closeHudLevelDetailModal);
+    const hudModal = $('hud-level-detail-modal');
+    if (hudModal) {
+      hudModal.addEventListener('click', (ev) => {
+        if (ev.target === hudModal) closeHudLevelDetailModal(); // 背景クリックで閉じる
+      });
+    }
     document.querySelectorAll('.seg-btn').forEach(b => b.addEventListener('click', () => switchSeg(b.dataset.seg)));
     $('themeBtn').addEventListener('click', toggleTheme);
     $('setThemeBtn').addEventListener('click', toggleTheme);
@@ -2597,11 +2885,15 @@ textarea { width: 100%; min-height: 60px; resize: vertical; }
     $('metroBpmInput').addEventListener('change', (e) => metroSetBpm(e.target.value));
     $('metroSig').addEventListener('change', metroBuildBeatDots);
     $('metroVol').addEventListener('input', (e) => {
+      // v3.3.0r2 B-3：ceiling 1.5 統一・LS 永続化（既存ユーザー値尊重）
+      const raw = parseInt(e.target.value, 10);
+      const vRaw = raw / 100;
+      const v = Math.max(0, Math.min(1.5, vRaw * 1.5));
       if (_metroSynth && typeof _metroSynth.setVolume === 'function') {
-        const v = parseInt(e.target.value, 10) / 100;
         const db = (v > 0) ? (20 * Math.log10(v)) : -60;
         _metroSynth.setVolume(db);
       }
+      try { lsSet(LS.METRO_VOL, raw); } catch(_){}
     });
     $('metroToggleBtn').addEventListener('click', metroToggle);
 
@@ -3510,6 +3802,32 @@ textarea { width: 100%; min-height: 60px; resize: vertical; }
   // ----------------------------------------------------------
   function boot() {
     applyTheme();
+    // v3.3.0r2 メトロ音量初期化（B-1〜B-5 受入条件）
+    //   - 既存 LS 値あり：そのまま尊重・スライダー復元
+    //   - 既存 LS 値なし（新規 or schema_version<3）：default 90 を適用＋初回トースト
+    try {
+      const savedVol = lsGet(LS.METRO_VOL, null);
+      if (savedVol !== null && typeof savedVol === 'number') {
+        $('metroVol').value = savedVol;
+      } else {
+        // 新規ユーザーは 90 を default 適用（HTML value=90 をそのまま保存）
+        $('metroVol').value = 90;
+        lsSet(LS.METRO_VOL, 90);
+      }
+      const schemaVer = lsGet(LS.SCHEMA_VERSION, 0);
+      const toastShown = lsGet(LS.METRO_VOL_V3_TOAST_SHOWN, false);
+      if (!toastShown && schemaVer < 3) {
+        // schema bump
+        lsSet(LS.SCHEMA_VERSION, 3);
+        lsSet(LS.METRO_VOL_V3_TOAST_SHOWN, true);
+        // 既存ユーザー（savedVol あり）には現値を表示してトースト
+        if (savedVol !== null && typeof savedVol === 'number') {
+          setTimeout(() => {
+            try { showToast('メトロノーム既定音量を 90 に上げました（あなたの現設定は ' + savedVol + ' のまま維持されています）', 4500); } catch(_){}
+          }, 1200);
+        }
+      }
+    } catch(_){}
     bindEvents();
     bindV3_1Events();
     metroBuildBeatDots();
@@ -3545,7 +3863,7 @@ textarea { width: 100%; min-height: 60px; resize: vertical; }
     try {
       if ('serviceWorker' in navigator) {
         const swCode = `
-          const CACHE = 'steady-v3.1.1';
+          const CACHE = 'steady-v3.3.0r2';
           const URLS = ['./', './steady.html', './vendor/tone.js', './vendor/chart.js'];
           self.addEventListener('install', (e) => {
             e.waitUntil(caches.open(CACHE).then(c => c.addAll(URLS).catch(()=>{})));
@@ -3571,12 +3889,12 @@ textarea { width: 100%; min-height: 60px; resize: vertical; }
           });
         `;
         const blob = new Blob([swCode], { type: 'application/javascript' });
-        const swUrl = URL.createObjectURL(blob) + '?v=3.1.1';
+        const swUrl = URL.createObjectURL(blob) + '?v=3.3.0r2';
         navigator.serviceWorker.register(swUrl).catch(err => { if (window.STEADY_DEBUG) console.warn('SW register failed:', err); });
       }
     } catch (_) { /* noop */ }
 
-    if (window.STEADY_DEBUG) console.log('STEADY DOJO QUEST v3.1.1 r1 ready (hotfix：クリック音 NoiseSynth+BPF default化・iOS AudioContext復帰・silent switch検知・dispose横展開・使用ログ計測／r1：metroVol setVolume修正)');
+    if (window.STEADY_DEBUG) console.log('STEADY DOJO QUEST v3.3.0r2 ready (UI redesign 8色／下部タブ5／HUD sticky／メトロ音量90／押引妖tight／耳訓練削除)');
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
