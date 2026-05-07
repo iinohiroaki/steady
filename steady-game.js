@@ -30,6 +30,69 @@
   var lsGet = S.lsGet, lsSet = S.lsSet;
 
   // -------------------------------------------------------------
+  // v3.3.0r3-p5 Phase 5：リサーチ駆動定数（P5-9 / P5-10 / P5-11）
+  //   出典：rhythm_game_juice_research_v1 / drum_app_competitive_analysis_v1
+  //   原則 F：練習中演出 0.5s 以内 ／ 原則 G：練習中軽量・後 reflection 派手
+  // -------------------------------------------------------------
+
+  // P5-9 多階層 judgment（osu!/SEKAI/Bandori/太鼓/FNF 業界標準）
+  //   ±15ms = Perfect / ±40ms = Great / ±80ms = Good / ±150ms 外 = Miss
+  //   early/late/on 3 値判定 ＋ popup 0.5s 以内消失
+  var PERFECT_WINDOW_MS = 15;
+  var GREAT_WINDOW_MS   = 40;
+  var GOOD_WINDOW_MS    = 80;
+  var MISS_WINDOW_MS    = 150;
+
+  function judgeTiming(deltaMs) {
+    // deltaMs：実打鍵の拍誤差（負＝先走り／正＝遅れ）
+    var abs = Math.abs(deltaMs);
+    var direction = (abs <= PERFECT_WINDOW_MS) ? 'on' : (deltaMs < 0 ? 'early' : 'late');
+    var grade;
+    if (abs <= PERFECT_WINDOW_MS)      grade = 'PERFECT';
+    else if (abs <= GREAT_WINDOW_MS)   grade = 'GREAT';
+    else if (abs <= GOOD_WINDOW_MS)    grade = 'GOOD';
+    else if (abs <= MISS_WINDOW_MS)    grade = 'MISS';
+    else                                grade = 'MISS';
+    // popup 0.5s 以内消失（host 側 spawnDamagePopup の damagePopupDuration=500ms と整合）
+    return { grade: grade, direction: direction, deltaMs: deltaMs|0 };
+  }
+
+  // P5-10 combo multiplier 段階制（Beat Saber / NecroDancer 標準）
+  //   1x → 2x → 4x → 8x（5/10/15 連続成功で昇格・ミスで半減）
+  var COMBO_TIERS = [
+    { threshold: 0,  multiplier: 1 },
+    { threshold: 5,  multiplier: 2 },
+    { threshold: 10, multiplier: 4 },
+    { threshold: 15, multiplier: 8 }
+  ];
+  function comboMultiplier(combo) {
+    var multiplier = 1;
+    for (var i = 0; i < COMBO_TIERS.length; i++) {
+      if ((combo|0) >= COMBO_TIERS[i].threshold) multiplier = COMBO_TIERS[i].multiplier;
+    }
+    return multiplier;
+  }
+  function comboHalveOnMiss(combo) {
+    return Math.floor((combo|0) / 2);
+  }
+
+  // P5-11 hitstop 50ms ＋ screen shake（クリ専用・diminishing magnitude）
+  //   通常 0.1s 微振幅／クリ 0.3s 大振幅／実打鍵阻害なし
+  var hitstopMs = 50;
+  function applyScreenShake(targetEl, isCrit) {
+    if (typeof window === 'undefined') return;
+    if (window.STEADY_applyScreenShake) {
+      try { window.STEADY_applyScreenShake(targetEl, !!isCrit); } catch(_){}
+    }
+  }
+  function applyHitstop(targetEl, isCrit) {
+    if (typeof window === 'undefined') return;
+    if (window.STEADY_applyHitstop) {
+      try { window.STEADY_applyHitstop(targetEl, !!isCrit); } catch(_){}
+    }
+  }
+
+  // -------------------------------------------------------------
   // 1. 静的データ：敵テーブル（ドラム神話系 8 体・発注書 §1-5 既定値）
   // -------------------------------------------------------------
   // phases[]：1 体につき 1〜3 段階。最後の phase で HP→0 ＝ 撃破。
@@ -1137,8 +1200,15 @@
   function gainXP(state, amount) {
     if (!amount || amount < 0) return state;
     state.xp = (state.xp || 0) + amount;
+    var oldLv = state.level || 1;
     var newLv = levelForXp(state.xp);
-    if (newLv > (state.level || 1)) state.level = newLv;
+    if (newLv > oldLv) {
+      state.level = newLv;
+      // P5-5 levelup 演出（連続バッチ集約・skip 可・0.5-1.5s 中規模）
+      if (typeof window !== 'undefined' && window.STEADY_levelUpBatch) {
+        try { window.STEADY_levelUpBatch(newLv); } catch(_){}
+      }
+    }
     return state;
   }
   function gainCoins(state, amount) {
@@ -1236,11 +1306,14 @@
   //   - 新形式：gachaRoll(times, 'stars') で還元星消費／'coins' 明示も可
   // -------------------------------------------------------------
   var GACHA_COST = 30; // コイン/1 回 or 還元星/1 回
+  // P5-4 pity システム（次SSR まで残り X 回・閾値 30）
+  var PITY_THRESHOLD = 30;
   function gachaRoll(times, currency) {
     times = times || 1;
     currency = currency === 'stars' ? 'stars' : 'coins'; // 既定はコイン（後方互換）
     var state = loadState();
     var results = [];
+    if (typeof state.pityCounter !== 'number') state.pityCounter = 0;
     // SS-4 ガチャも解禁済みスロットからのみ排出（Lv 連動）
     var pool = unlockedSlots(state && state.level);
     for (var i = 0; i < times; i++) {
@@ -1252,6 +1325,10 @@
         state.coins -= GACHA_COST;
       }
       var rarity = pickRarityWeighted();
+      // P5-4 pity：30 連で SSR (rarity 4) 確定排出（業界標準保守値）
+      state.pityCounter = (state.pityCounter|0) + 1;
+      if (state.pityCounter >= PITY_THRESHOLD && rarity < 4) rarity = 4;
+      if (rarity >= 4) state.pityCounter = 0; // SSR 以上排出で reset
       var slot = pool[Math.floor(Math.random() * pool.length)] || 'weapon';
       var eq = makeEquipment(slot, rarity);
       state.equipment = state.equipment || [];
@@ -1259,6 +1336,10 @@
       results.push(eq);
     }
     saveState(state);
+    // pity counter UI 再描画
+    if (typeof window !== 'undefined' && window.STEADY_renderPityCounter) {
+      try { window.STEADY_renderPityCounter(); } catch(_){}
+    }
     return results;
   }
 
@@ -1740,6 +1821,13 @@
     var roll = Math.random() * 100;
     var hit = roll < this.player.acc;
     var dmg, crit = false, weakHit = false;
+    // P5-9 多階層 judgment（観戦 sim：拍誤差 deltaMs を疑似生成）
+    var deltaMs = (Math.random() * 80 - 40) | 0; // -40〜+40ms 中心
+    if (crit) deltaMs = (Math.random() * 14 - 7) | 0; // クリ→ Perfect 寄り
+    if (!hit) deltaMs = (Math.random() * 200 - 100) | 0; // miss→広め
+    var judgeRes = judgeTiming(deltaMs);
+    // P5-10 combo multiplier 段階制
+    if (typeof this.combo !== 'number') this.combo = 0;
     if (hit) {
       var sub = Math.random();
       var base = Math.max(1, Math.round(this.player.atk + (Math.random() * 6 - 2)));
@@ -1754,17 +1842,39 @@
       } else {
         dmg = base;
       }
+      this.combo++;
     } else {
       dmg = 0; // 完全 miss = ダメージ 0（既存仕様維持）
+      this.combo = comboHalveOnMiss(this.combo);
+    }
+    // P5-10 multiplier を適用（1x→2x→4x→8x・5/10/15 連続）
+    var multiplier = comboMultiplier(this.combo);
+    if (hit && multiplier > 1) {
+      dmg = Math.round(dmg * multiplier);
     }
     this.enemyHp -= dmg;
     this.totalDmgToEnemy += dmg;
     var label;
-    if (!hit) label = '▶ Miss';
-    else if (crit) label = '▶ ' + dmg + ' ダメージ（会心 ×1.5・拍合致）';
-    else if (weakHit) label = '▶ ' + dmg + ' ダメージ（×0.5・拍ズレ）';
-    else label = '▶ ' + dmg + ' ダメージ';
+    if (!hit) label = '▶ Miss（' + judgeRes.grade + ' ' + (judgeRes.deltaMs > 0 ? '+' : '') + judgeRes.deltaMs + 'ms）';
+    else if (crit) label = '▶ ' + dmg + ' ダメージ（会心 ×1.5・' + judgeRes.grade + ' ' + (judgeRes.deltaMs > 0 ? '+' : '') + judgeRes.deltaMs + 'ms・combo×' + multiplier + '）';
+    else if (weakHit) label = '▶ ' + dmg + ' ダメージ（×0.5・' + judgeRes.grade + ' ' + (judgeRes.deltaMs > 0 ? '+' : '') + judgeRes.deltaMs + 'ms）';
+    else label = '▶ ' + dmg + ' ダメージ（' + judgeRes.grade + ' ' + (judgeRes.deltaMs > 0 ? '+' : '') + judgeRes.deltaMs + 'ms・combo×' + multiplier + '）';
     this.onLog({ kind: 'p-atk', text: label });
+    // P5-2 damage popup（敵 tile 上に値表示・combo tier で色階層）
+    if (typeof window !== 'undefined' && hit && window.STEADY_spawnDamagePopup) {
+      try {
+        var tile = document.getElementById('battleEnemyTile');
+        if (tile) window.STEADY_spawnDamagePopup(tile, dmg, this.combo);
+      } catch(_){}
+    }
+    // P5-11 クリ時のみ hitstop+screen shake（diminishing magnitude）
+    if (typeof window !== 'undefined' && hit) {
+      try {
+        var arena = document.querySelector('#battleModal .battle-arena');
+        applyScreenShake(arena, crit);
+        applyHitstop(arena, crit);
+      } catch(_){}
+    }
     if (this.enemyHp <= 0) {
       // 形態移行 or 撃破
       if (this.phaseIdx < this.enemy.phases.length - 1) {
@@ -1992,6 +2102,10 @@
     if (!modal) return;
     modal.classList.add('open');
     document.body.style.overflow = 'hidden';
+    // P5-6 プレステ後敵 HUD 金枠強調（戦闘開始時に適用）
+    if (typeof window !== 'undefined' && window.STEADY_applyEnemyGoldFrame) {
+      try { setTimeout(window.STEADY_applyEnemyGoldFrame, 50); } catch(_){}
+    }
     var ab = autoBattle({
       enemy: opts && opts.enemy,
       onUpdate: function (st) {
@@ -2131,7 +2245,10 @@
       }
       // SS-6 分解で得られる還元星数（プレビュー）
       var disStars = DISASSEMBLE_STAR_TABLE[e.rarity] || 1;
-      return '<div class="equip-item" data-id="' + e.id + '" style="border-color:' + col + '">' +
+      // P5-1 装備カード二層演出（rarity-{1..5} 付与・rarity 4/5 で gold-frame 光）
+      return '<div class="equip-item equip-card-layer rarity-' + e.rarity + '" data-id="' + e.id + '" style="border-color:' + col + '">' +
+        '<div class="equip-card-frame gold-frame" aria-hidden="true"></div>' +
+        '<div class="equip-card-body">' +
         '<div class="equip-head">' +
           '<span class="equip-rar" style="background:' + col + '">★' + rar + '</span>' +
           '<span class="equip-name">' + escapeHtml(e.name) + '</span>' +
@@ -2155,6 +2272,7 @@
             (e.equipped ? ' disabled title="装備中は分解できません（先に外してください）"' : ' title="分解して 🌟' + disStars + ' を獲得"') +
             '>分解 🌟' + disStars + '</button>' +
         '</div>' +
+        '</div>' + // close equip-card-body (P5-1)
       '</div>';
     }).join('');
     // 装備ボタン
@@ -2454,16 +2572,31 @@
       }
       return;
     }
+    // P5-3 ガチャ演出シーケンス（GACHA_TIMING 4 段階）
+    // P5-13 D4 skeleton screen（gacha placeholder shimmer）
+    var timing = (typeof window !== 'undefined' && window.STEADY_GACHA_TIMING) || { flash: 100, burst: 500, pillar: 1000, card: 1500 };
     if (box) {
-      box.innerHTML = results.map(function (e) {
+      box.innerHTML = '<div class="skeleton-shimmer" style="height:80px;"></div>';
+    }
+    // 練習中は演出 0.5x 短縮（原則 G）
+    var practiceFactor = (typeof window !== 'undefined' && window.STEADY_PRACTICE_ACTIVE === true) ? 0.5 : 1;
+    var renderResults = function () {
+      if (!box) return;
+      box.innerHTML = results.map(function (e, i) {
         var col = RARITY_COLOR[e.rarity];
         var rar = RARITY_LABEL[e.rarity];
-        return '<div class="gacha-card" style="border-color:' + col + '">' +
+        // P5-1 装備カード二層演出を gacha 結果にも適用
+        return '<div class="gacha-card equip-card-layer rarity-' + e.rarity + ' gacha-card-reveal" style="border-color:' + col + '; animation-delay:' + (i * 60) + 'ms;">' +
+          '<div class="equip-card-frame gold-frame" aria-hidden="true"></div>' +
+          '<div class="equip-card-body">' +
           '<span class="gacha-rar" style="background:' + col + '">★' + rar + '</span>' +
           '<span class="gacha-name">' + escapeHtml(e.name) + '</span>' +
+          '</div>' +
         '</div>';
       }).join('');
-    }
+    };
+    // GACHA_TIMING の合計だけ待ってから結果描画（card stage で reveal）
+    setTimeout(renderResults, Math.round((timing.flash + timing.burst) * practiceFactor));
     renderAll();
   }
 
@@ -2471,7 +2604,18 @@
   // 19. 公開 API
   // -------------------------------------------------------------
   global.SteadyGame = {
-    __version: 'v3.3.0-block9-h2',
+    __version: 'v3.3.0-block9-h5',
+    /* v3.3.0r3-p5 Phase 5 リサーチ駆動定数 */
+    PERFECT_WINDOW_MS: PERFECT_WINDOW_MS,
+    GREAT_WINDOW_MS: GREAT_WINDOW_MS,
+    GOOD_WINDOW_MS: GOOD_WINDOW_MS,
+    MISS_WINDOW_MS: MISS_WINDOW_MS,
+    judgeTiming: judgeTiming,
+    COMBO_TIERS: COMBO_TIERS,
+    comboMultiplier: comboMultiplier,
+    comboHalveOnMiss: comboHalveOnMiss,
+    hitstopMs: hitstopMs,
+    PITY_THRESHOLD: PITY_THRESHOLD,
     AutoBattle: AutoBattle,
     autoBattle: autoBattle,
     loadState: loadState,
