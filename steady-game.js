@@ -1525,6 +1525,76 @@
   }
 
   // -------------------------------------------------------------
+  // v3.3.0r3 #6：sub-pattern タグ／chapter（6×10）／インターリーブシャッフル
+  // -------------------------------------------------------------
+  // Shea & Morgan (1979) PMC6870452 — interleaved practice。同タグ連続を避け、
+  // 6 種タグ（rock_kick / hand_speed / ghost_note / 8th / 16th / fill）を巡回させる。
+  // タグ判定は ENEMIES の id / motif から決定論的に導出（書き換え不要・60 体カバー）。
+  var SUB_PATTERN_TAGS = ['rock_kick', 'hand_speed', 'ghost_note', '8th', '16th', 'fill'];
+
+  function getSubPatternTag(enemy) {
+    if (!enemy || !enemy.id) return '8th';
+    var id = enemy.id;
+    var motif = (enemy.motif || '') + ' ' + (enemy.name || '');
+    // motif キーワード優先（hand_speed / 16th / fill 等）
+    if (/速拍|手数|疾風|スピード|hand_speed|高速|疾走/.test(motif)) return 'hand_speed';
+    if (/16分|十六|細|sixteenth|裏拍|装飾/.test(motif)) return '16th';
+    if (/フィル|fill|崩し|繋ぎ|装飾拍|岩戸|ぶちかま/.test(motif)) return 'fill';
+    if (/ゴースト|ghost|静か|余韻|低音|タム/.test(motif)) return 'ghost_note';
+    if (/バックビート|backbeat|スネア|Rock|ロック|キック|kick/i.test(motif)) return 'rock_kick';
+    // fallback：id ハッシュで均等割
+    var h = 0;
+    for (var i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
+    return SUB_PATTERN_TAGS[Math.abs(h) % SUB_PATTERN_TAGS.length];
+  }
+
+  // chapter（6 章 × 10 体 = 60）：unlockLevel 昇順でグルーピング
+  // 1〜5Lv = ch1, 6〜10Lv = ch2, 11〜15Lv = ch3, 16〜20Lv = ch4, 21〜30Lv = ch5, 31〜+ = ch6
+  function getChapterFor(enemy) {
+    if (!enemy) return 1;
+    var lv = enemy.unlockLevel || 1;
+    if (enemy.isHidden) return 6; // 隠し は最終章扱い
+    if (lv <= 5) return 1;
+    if (lv <= 10) return 2;
+    if (lv <= 15) return 3;
+    if (lv <= 20) return 4;
+    if (lv <= 30) return 5;
+    return 6;
+  }
+
+  // インターリーブシャッフル：同タグが連続しないよう並べ替える（Fisher-Yates 後にスワップ補正）
+  function interleaveByTag(list) {
+    if (!list || list.length < 2) return list || [];
+    var arr = list.slice();
+    // Fisher-Yates
+    for (var i = arr.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+    }
+    // 同タグ連続を最大 3 回までスワップで解消
+    for (var pass = 0; pass < 3; pass++) {
+      var swapped = false;
+      for (var k = 1; k < arr.length; k++) {
+        if (getSubPatternTag(arr[k]) === getSubPatternTag(arr[k - 1])) {
+          // 後ろを探して別タグの enemy を持ってくる
+          for (var m = k + 1; m < arr.length; m++) {
+            if (getSubPatternTag(arr[m]) !== getSubPatternTag(arr[k - 1])) {
+              var t2 = arr[k]; arr[k] = arr[m]; arr[m] = t2;
+              swapped = true;
+              break;
+            }
+          }
+        }
+      }
+      if (!swapped) break;
+    }
+    return arr;
+  }
+
+  // 直前タグ記憶（同タグ連続を pickEnemy レベルで避ける）
+  var _lastPickedTag = null;
+
+  // -------------------------------------------------------------
   // 15. 敵候補 pickEnemy（Lv／隠し条件で絞る）
   // -------------------------------------------------------------
   function pickEnemy(state) {
@@ -1585,7 +1655,12 @@
       return (state.level || 1) >= e.unlockLevel;
     });
     if (available.length === 0) return ENEMIES[0]; // 拍神 fallback
-    return available[Math.floor(Math.random() * available.length)];
+    // v3.3.0r3 #6 インターリーブ：直前タグと同じタグの enemy を避ける（候補が他にあれば）
+    var nonRepeat = available.filter(function (e) { return getSubPatternTag(e) !== _lastPickedTag; });
+    var pool = nonRepeat.length > 0 ? nonRepeat : available;
+    var picked = pool[Math.floor(Math.random() * pool.length)];
+    _lastPickedTag = getSubPatternTag(picked);
+    return picked;
   }
 
   // -------------------------------------------------------------
@@ -1659,13 +1734,37 @@
     this.rafId = requestAnimationFrame(this._loop.bind(this));
   };
   AutoBattle.prototype._playerAttack = function () {
-    var hit = (Math.random() * 100) < this.player.acc;
-    var dmg = hit ? Math.max(1, Math.round(this.player.atk + (Math.random() * 6 - 2))) : 0;
-    var crit = hit && Math.random() < 0.12;
-    if (crit) dmg = Math.round(dmg * 1.7);
+    // v3.3.0r3 #6：拍合致 1.5x crit / miss 0.5x / 通常 1.0x 倍率
+    // 観戦型 AutoBattle なので「拍合致」は確率シミュレート（player.acc を直接 hit 確率に流用しつつ、
+    // hit 内で 12% を beat-match crit、80% を normal、残り 8% を弱 miss=0.5x として扱う）
+    var roll = Math.random() * 100;
+    var hit = roll < this.player.acc;
+    var dmg, crit = false, weakHit = false;
+    if (hit) {
+      var sub = Math.random();
+      var base = Math.max(1, Math.round(this.player.atk + (Math.random() * 6 - 2)));
+      if (sub < 0.12) {
+        // beat-match crit ×1.5
+        crit = true;
+        dmg = Math.round(base * 1.5);
+      } else if (sub > 0.92) {
+        // weak hit ×0.5（miss と区別：当たったが拍ズレ）
+        weakHit = true;
+        dmg = Math.max(1, Math.round(base * 0.5));
+      } else {
+        dmg = base;
+      }
+    } else {
+      dmg = 0; // 完全 miss = ダメージ 0（既存仕様維持）
+    }
     this.enemyHp -= dmg;
     this.totalDmgToEnemy += dmg;
-    this.onLog({ kind: 'p-atk', text: hit ? ('▶ ' + dmg + ' ダメージ' + (crit ? '（会心）' : '')) : '▶ Miss' });
+    var label;
+    if (!hit) label = '▶ Miss';
+    else if (crit) label = '▶ ' + dmg + ' ダメージ（会心 ×1.5・拍合致）';
+    else if (weakHit) label = '▶ ' + dmg + ' ダメージ（×0.5・拍ズレ）';
+    else label = '▶ ' + dmg + ' ダメージ';
+    this.onLog({ kind: 'p-atk', text: label });
     if (this.enemyHp <= 0) {
       // 形態移行 or 撃破
       if (this.phaseIdx < this.enemy.phases.length - 1) {
@@ -1696,6 +1795,8 @@
     }
   };
   AutoBattle.prototype._end = function () {
+    // v3.3.0r3 #6：撃破演出 0.5s 以内 cap — 最終ログから onEnd 発火まで 500ms 以内を保証
+    var endStartedAt = performance.now();
     this.running = false;
     cancelAnimationFrame(this.rafId);
     var state = loadState();
@@ -1765,9 +1866,14 @@
     }
     var newTitles = unlockTitles(state);
     saveState(state);
+    // v3.3.0r3 #6：撃破演出 0.5s 以内 cap 検証（remaining 計算）
+    var endElapsed = performance.now() - endStartedAt;
+    if (endElapsed > 500 && typeof window !== 'undefined' && window.STEADY_DEBUG && typeof console !== 'undefined' && console.warn) { console.warn('[AutoBattle] 撃破演出が 500ms 超過 (STEADY_DEBUG): ' + Math.round(endElapsed) + 'ms'); }
     this.onEnd({
       result: this.result, elapsed: elapsed, earned: earned,
-      enemy: this.enemy, newTitles: newTitles
+      enemy: this.enemy, newTitles: newTitles,
+      subPatternTag: getSubPatternTag(this.enemy),
+      chapter: getChapterFor(this.enemy)
     });
   };
   AutoBattle.prototype.abort = function () {
@@ -2387,6 +2493,11 @@
     unlockTitles: unlockTitles,
     prestige: prestige,
     pickEnemy: pickEnemy,
+    /* v3.3.0r3 #6：sub-pattern interleave / chapter / 拍合致 ×1.5 ×0.5 ×1.0 */
+    SUB_PATTERN_TAGS: SUB_PATTERN_TAGS,
+    getSubPatternTag: getSubPatternTag,
+    getChapterFor: getChapterFor,
+    interleaveByTag: interleaveByTag,
     /* SS-5 プレステ敵強化（×0.2/回） */
     instantiateEnemy: instantiateEnemy,
     PRESTIGE_ENEMY_SCALE_PER_LEVEL: PRESTIGE_ENEMY_SCALE_PER_LEVEL,
