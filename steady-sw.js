@@ -26,8 +26,8 @@
 
 'use strict';
 
-// VERSION tag: 'block9-h3'（v3.3.0r2：UI リデザイン＋ HUD ＋下部タブ ＋押引妖 tight ＋メトロ音量 90 ＋耳訓練退役・AL007 / 2026-05-07）
-const VERSION = 'steady-v3.3.0-block9-h3';
+// VERSION tag: 'block9-h4'（v3.3.0r3：上部タブ削除／BPM 不変ガード／メトロずれ視覚化／拍子 sequence／AutoBattle 一択／外的注意コピー／遅延 FB／desirable difficulty・AL007 / 2026-05-08）
+const VERSION = 'steady-v3.3.0-block9-h4';
 const CACHE_STATIC = VERSION + '-static';
 const CACHE_RUNTIME = VERSION + '-runtime';
 
@@ -61,7 +61,7 @@ const PRECACHE_URLS = [
 ];
 
 // 旧 cache（v3.0/v3.1/旧 r2 試作）を一掃する prefix
-const OLD_CACHE_PREFIXES = ['steady-v3.0', 'steady-v3.1', 'steady-v3.2.0r2-block0', 'steady-v3.2.0r2-block1', 'steady-v3.2.0r2-block2', 'steady-v3.2.0r2-block3', 'steady-v3.2.0r2-block4', 'steady-v3.2.0r2-block5', 'steady-v3.2.0r2-block6', 'steady-v3.2.0r2-block7', 'steady-v3.2.0r2-block8-h1', 'steady-v3.2.0r2-block8-h2', 'steady-v3.2.0r2-block8-h3', 'steady-v3.2.0r2-block8-h4', 'steady-v3.2.0r2-block8-h5', 'steady-v3.2.0r2-block8-h6', 'steady-v3.3.0-block9-h1', 'steady-v3.3.0-block9-h2'];
+const OLD_CACHE_PREFIXES = ['steady-v3.0', 'steady-v3.1', 'steady-v3.2.0r2-block0', 'steady-v3.2.0r2-block1', 'steady-v3.2.0r2-block2', 'steady-v3.2.0r2-block3', 'steady-v3.2.0r2-block4', 'steady-v3.2.0r2-block5', 'steady-v3.2.0r2-block6', 'steady-v3.2.0r2-block7', 'steady-v3.2.0r2-block8-h1', 'steady-v3.2.0r2-block8-h2', 'steady-v3.2.0r2-block8-h3', 'steady-v3.2.0r2-block8-h4', 'steady-v3.2.0r2-block8-h5', 'steady-v3.2.0r2-block8-h6', 'steady-v3.3.0-block9-h1', 'steady-v3.3.0-block9-h2', 'steady-v3.3.0-block9-h3'];
 
 // -------------------------------------------------------------
 // install: 静的 precache
