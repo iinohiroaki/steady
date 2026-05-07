@@ -671,6 +671,321 @@ main {
   .level-hud { font-size: 0.8rem; gap: 8px; padding: 4px 10px; padding-top: calc(4px + env(safe-area-inset-top, 0px)); }
   .level-hud .hud-cell { gap: 3px; }
 }
+
+/* ============================================================
+   v3.3.0r3-p5 Phase 5 演出・洗練統合（13 scope）
+   - 設計原則 F：練習中演出 0.5s 以内
+   - 設計原則 G：練習中＝軽量／練習後 reflection＝派手 OK
+   - 設計原則 H：prefers-reduced-motion 0.5x ＋パーティクル 0.3x
+   - 設計原則 I：PWA 制約（Web Vibration / Web Audio / will-change スコープ限定）
+   ============================================================ */
+
+/* P5-13 D1：cubic-bezier 統一トークン（4 カーブ） */
+:root {
+  --ease-standard:   cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-decelerate: cubic-bezier(0,   0, 0.2, 1);
+  --ease-accelerate: cubic-bezier(0.4, 0, 1,   1);
+  --ease-sharp:      cubic-bezier(0.4, 0, 0.6, 1);
+  /* P5-13 D5：OLED 純黒モード（任意・既定 OFF） */
+  --bg-base: var(--bg);
+}
+body.oled-pure-black {
+  --bg-base: #000;
+  --bg: #000;
+}
+
+/* P5-13 D2：prefers-reduced-motion 全 keyframes ガード（WCAG 2.3.3） */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  /* パーティクル系（fx-petal-fall / fx-bolt-flash 等）も短縮 */
+  .fx-particle, .damage-popup, .levelup-cutin,
+  .gacha-flash, .gacha-burst, .gacha-pillar, .gacha-card-reveal,
+  .screen-shake, .hitstop, .skeleton-shimmer { animation: none !important; }
+}
+
+/* P5-1 装備カード二層演出（レア枠光 ＋ Persona 5 風フラット中身） */
+.equip-card-layer {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  isolation: isolate;
+}
+.equip-card-layer .equip-card-frame {
+  position: absolute; inset: 0;
+  border-radius: 12px; pointer-events: none;
+  z-index: 1;
+}
+.equip-card-layer.rarity-4 .equip-card-frame,
+.equip-card-layer.rarity-5 .equip-card-frame {
+  /* 金/虹枠光（SSR/UR のみ） */
+  box-shadow:
+    inset 0 0 0 2px var(--c-rare-gold, #FFD700),
+    0 0 12px rgba(255, 215, 0, 0.55),
+    0 0 24px rgba(255, 215, 0, 0.25);
+  animation: equip-frame-shimmer 2400ms var(--ease-standard) infinite;
+}
+.equip-card-layer.rarity-5 .equip-card-frame {
+  background: var(--c-rare-rainbow, linear-gradient(135deg,#FF6B6B 0%,#FFE66D 25%,#4ECDC4 50%,#95E1D3 75%,#C7B8EA 100%));
+  opacity: 0.18;
+  mix-blend-mode: screen;
+}
+.equip-card-layer .equip-card-body {
+  position: relative; z-index: 2;
+  background: var(--surface);
+  /* Persona 5 風フラット斜めカット */
+  clip-path: polygon(0 6%, 100% 0, 100% 94%, 0 100%);
+  padding: 14px 16px;
+}
+@keyframes equip-frame-shimmer {
+  0%, 100% { filter: brightness(1); }
+  50%      { filter: brightness(1.18); }
+}
+
+/* P5-2 ダメージ数値ポップアップ（combo 0/10/30/60/100/200 で色階層） */
+/* duration 500ms（fade-in 50ms / hold 350ms / out 100ms） — 練習中阻害禁止 */
+.damage-popup-layer {
+  position: absolute; inset: 0;
+  pointer-events: none; overflow: hidden;
+  z-index: 30;
+}
+.damage-popup {
+  position: absolute;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-weight: 800;
+  font-size: clamp(24px, 5vw, 40px);
+  text-shadow: 0 2px 6px rgba(0,0,0,0.45);
+  pointer-events: none;
+  white-space: nowrap;
+  /* damagePopupDuration = 500ms */
+  animation: popup-fade 500ms var(--ease-decelerate) forwards;
+  will-change: opacity, transform;
+}
+.damage-popup.tier-0 { color: #ffffff; }
+.damage-popup.tier-1 { color: #FFE66D; }
+.damage-popup.tier-2 { color: #FF8C42; }
+.damage-popup.tier-3 { color: #FF4757; }
+.damage-popup.tier-4 { color: #C7B8EA; }
+.damage-popup.tier-5 {
+  background: linear-gradient(135deg,#FF6B6B,#FFE66D,#4ECDC4,#C7B8EA);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+}
+@keyframes popup-fade {
+  0%   { opacity: 0; transform: translateY(0) scale(0.85); }
+  10%  { opacity: 1; transform: translateY(-6px) scale(1.05); }    /* fade-in 50ms */
+  80%  { opacity: 1; transform: translateY(-22px) scale(1); }      /* hold 350ms */
+  100% { opacity: 0; transform: translateY(-32px) scale(0.95); }   /* out 100ms */
+}
+
+/* P5-3 ガチャ演出シーケンス（4 段階・GACHA_TIMING 定数と同期） */
+.gacha-stage {
+  position: fixed; inset: 0; z-index: 600;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.78); pointer-events: none;
+}
+.gacha-stage.active { display: flex; }
+.gacha-flash {
+  position: absolute; inset: 0; background: #fff;
+  animation: gacha-flash 100ms var(--ease-sharp) forwards;
+}
+.gacha-burst {
+  width: 120px; height: 120px; border-radius: 12px;
+  background: linear-gradient(135deg,#FFD700,#FF8C42);
+  animation: gacha-burst 500ms var(--ease-decelerate) forwards;
+}
+.gacha-pillar {
+  position: absolute; left: 50%; top: 0; bottom: 0;
+  width: 14vw; min-width: 80px; max-width: 200px;
+  background: linear-gradient(to bottom,
+    rgba(255,255,255,0.0) 0%,
+    rgba(255,215,0,0.35) 30%,
+    rgba(255,215,0,0.6) 50%,
+    rgba(255,215,0,0.35) 70%,
+    rgba(255,255,255,0.0) 100%);
+  transform: translateX(-50%) scaleY(0);
+  transform-origin: top center;
+  animation: gacha-pillar 1000ms var(--ease-decelerate) forwards;
+}
+.gacha-card-reveal {
+  position: relative; opacity: 0;
+  animation: gacha-card-reveal 1500ms var(--ease-decelerate) forwards;
+}
+@keyframes gacha-flash    { 0% { opacity:0 } 30% { opacity:1 } 100% { opacity:0 } }
+@keyframes gacha-burst    { 0% { transform: scale(0) rotate(0) } 70% { transform: scale(1.2) rotate(20deg) } 100% { transform: scale(1) rotate(0); opacity: 1 } }
+@keyframes gacha-pillar   { 0% { transform: translateX(-50%) scaleY(0) } 100% { transform: translateX(-50%) scaleY(1); opacity: 1 } }
+@keyframes gacha-card-reveal { 0% { opacity: 0; transform: translateY(20px) scale(0.85) } 60% { opacity: 1; transform: translateY(0) scale(1.04) } 100% { opacity: 1; transform: translateY(0) scale(1) } }
+
+/* P5-4 Pity システム可視化（次SSRまで残りX回） */
+.pity-counter {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 0.78rem; color: var(--muted);
+  padding: 4px 10px; border-radius: 999px;
+  background: var(--surface); border: 1px solid var(--border);
+  margin-top: 6px;
+}
+.pity-counter .pity-bar {
+  width: 80px; height: 4px; border-radius: 2px;
+  background: var(--border); overflow: hidden;
+}
+.pity-counter .pity-bar-fill {
+  height: 100%; background: var(--c-rare-gold, #FFD700);
+  transition: width 0.3s var(--ease-standard);
+}
+.pity-counter.imminent { color: var(--c-rare-gold, #b07900); border-color: var(--c-rare-gold); }
+
+/* P5-5 レベルアップ・連勝・隠し妖怪解禁演出（中規模・skip 可・連続バッチ） */
+.levelup-cutin {
+  position: fixed; left: 50%; top: 50%; z-index: 550;
+  transform: translate(-50%, -50%);
+  padding: 20px 32px; border-radius: 12px;
+  background: linear-gradient(135deg, var(--accent), #ff4757);
+  color: #fff; font-weight: 800; font-size: 1.6rem;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+  pointer-events: auto;
+  animation: levelup-cutin 1200ms var(--ease-decelerate) forwards;
+  cursor: pointer;
+}
+.levelup-cutin .levelup-batch {
+  display: block; font-size: 0.85rem; font-weight: 600; opacity: 0.85;
+  margin-top: 4px;
+}
+.levelup-cutin .levelup-skip-hint {
+  display: block; font-size: 0.7rem; opacity: 0.7; margin-top: 6px;
+}
+@keyframes levelup-cutin {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.7) }
+  20%  { opacity: 1; transform: translate(-50%, -50%) scale(1.06) }
+  85%  { opacity: 1; transform: translate(-50%, -50%) scale(1) }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(0.95) }
+}
+
+/* P5-6 プレステ後敵 HUD 金枠強調 */
+.battle-enemy-tile.boss-frame,
+.enemy-gold-frame {
+  position: relative;
+  border: 2px solid var(--c-rare-gold, #FFD700) !important;
+  box-shadow:
+    0 0 0 1px rgba(255,215,0,0.4),
+    0 0 16px rgba(255,215,0,0.45),
+    inset 0 0 12px rgba(255,215,0,0.18);
+  border-radius: 10px;
+}
+.enemy-gold-frame::after {
+  content: attr(data-prestige-mul);
+  position: absolute; top: -10px; right: 8px;
+  background: var(--c-rare-gold, #FFD700); color: #1a1a1a;
+  font-weight: 800; font-size: 0.72rem;
+  padding: 2px 8px; border-radius: 999px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+/* P5-7 HOME emo 改修（静謐・準備の場・tone down）
+   ※ hotfix v1.0 §2 HOME 関連と同要素を触らないため、専用クラスを付与で運用 */
+body.home-emo .home-tone-target {
+  --home-tone: 0.92; /* tone reference */
+}
+body.home-emo #tab-home {
+  background: linear-gradient(180deg, var(--bg) 0%, color-mix(in srgb, var(--bg) 92%, var(--accent) 8%) 100%);
+}
+body.home-emo #tab-home h2 { letter-spacing: 0.04em; opacity: 0.95; }
+body.home-emo #tab-home .section-sub { opacity: 0.82; font-style: italic; }
+body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
+
+/* P5-8 METRO メトロノーム可視化 Canvas（±15ms 緑帯） */
+.metro-viz-wrap {
+  position: relative; margin-top: 12px;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface); padding: 8px;
+}
+.metro-viz-canvas {
+  width: 100%; height: 60px; display: block;
+  border-radius: 6px;
+}
+.metro-viz-legend {
+  display: flex; justify-content: space-between;
+  font-size: 0.7rem; color: var(--muted); margin-top: 4px;
+}
+
+/* P5-11 hitstop + screen shake（クリ専用・diminishing magnitude） */
+.battle-arena.hitstop { animation-play-state: paused; }
+.screen-shake-target { will-change: transform; }
+.screen-shake-target.shake-normal {
+  animation: shake-normal 100ms var(--ease-sharp);
+}
+.screen-shake-target.shake-crit {
+  animation: shake-crit 300ms var(--ease-sharp);
+}
+@keyframes shake-normal {
+  0%, 100% { transform: translate(0, 0); }
+  25%      { transform: translate(-1px, 0); }
+  50%      { transform: translate(1px, -1px); }
+  75%      { transform: translate(0, 1px); }
+}
+@keyframes shake-crit {
+  0%, 100% { transform: translate(0, 0); }
+  10% { transform: translate(-3px, -1px); }
+  20% { transform: translate(3px, 1px); }
+  30% { transform: translate(-2px, 2px); }
+  40% { transform: translate(2px, -2px); }
+  50% { transform: translate(-2px, -1px); }
+  60% { transform: translate(1px, 2px); }
+  70% { transform: translate(-1px, -1px); }
+  80% { transform: translate(1px, 1px); }
+  90% { transform: translate(-1px, 0); }
+}
+
+/* P5-12 streak loss aversion（炎アイコン上部固定・freeze 可視化） */
+.streak-flame-fixed {
+  position: fixed; top: calc(env(safe-area-inset-top, 0px) + 60px);
+  right: 12px; z-index: 60;
+  background: linear-gradient(135deg, #FF6B6B, #FFA94D);
+  color: #fff; font-weight: 800;
+  padding: 6px 12px; border-radius: 999px;
+  box-shadow: 0 4px 12px rgba(255,107,107,0.45);
+  font-size: 0.85rem;
+  display: inline-flex; align-items: center; gap: 4px;
+  pointer-events: auto; cursor: pointer;
+}
+.streak-flame-fixed .flame-icon { font-size: 1rem; }
+.streak-flame-fixed .streak-days { font-variant-numeric: tabular-nums; }
+.streak-flame-fixed .streak-freeze-badge {
+  background: rgba(255,255,255,0.28); border-radius: 999px;
+  padding: 1px 6px; font-size: 0.7rem;
+}
+.streak-flame-fixed.empty { background: var(--muted); box-shadow: none; opacity: 0.7; }
+
+/* P5-13 D4 skeleton screen（gacha placeholder shimmer） */
+.skeleton-shimmer {
+  position: relative; overflow: hidden;
+  background: var(--surface);
+  border-radius: 8px;
+  min-height: 60px;
+}
+.skeleton-shimmer::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(255,255,255,0.18) 50%,
+    transparent 100%);
+  animation: skeleton-shimmer 1400ms var(--ease-standard) infinite;
+}
+@keyframes skeleton-shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* P5-13 D5（OLED 純黒トグル UI） */
+.oled-toggle {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 0.85rem; cursor: pointer;
+  padding: 6px 10px; border: 1px solid var(--border);
+  border-radius: 8px; background: var(--surface);
+  color: var(--text);
+}
 </style>
 </head>
 <body>
@@ -4131,6 +4446,302 @@ main {
   };
 
   // ----------------------------------------------------------
+  // 25-P5. Phase 5 演出・洗練統合（v3.3.0r3-p5・13 scope）
+  //   - P5-3 GACHA_TIMING / P5-13 D3 safeVibrate / P5-2 damagePopupDuration
+  //   - P5-4 pity / P5-5 levelup batch / P5-6 enemy gold frame
+  //   - P5-7 HOME emo body class / P5-8 METRO viz canvas
+  //   - P5-11 hitstop+shake / P5-12 streak flame fixed / P5-13 D5 OLED toggle
+  //   原則 F：練習中演出 0.5s 以内 ／ 原則 G：練習中軽量・後 reflection 派手
+  //   原則 H：prefers-reduced-motion 検出 ／ 原則 I：PWA 制約両立
+  // ----------------------------------------------------------
+
+  // P5-3 GACHA_TIMING（4 段階定数：flash → 箱割れ → 光柱 → カード）
+  const GACHA_TIMING = {
+    flash:  100,   // ms（フラッシュ）
+    burst:  500,   // ms（箱割れ）
+    pillar: 1000,  // ms（光柱）
+    card:   1500   // ms（カード露出）
+  };
+
+  // P5-2 damage popup duration（500ms = fade-in 50 / hold 350 / out 100）
+  const damagePopupDuration = 500;
+
+  // P5-13 D3 safeVibrate util（fail-silent / iOS 無対応吸収 / 練習中 OFF 必須）
+  function safeVibrate(pattern) {
+    try {
+      // 練習中フラグ：steady-use-log や global flag 連動。練習画面は OFF。
+      if (window.STEADY_PRACTICE_ACTIVE === true) return false;
+      if (typeof navigator === 'undefined') return false;
+      if (typeof navigator.vibrate !== 'function') return false; // iOS Safari fallback
+      if (matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
+      navigator.vibrate(pattern);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+  // 公開（steady-game.js から呼び出せるよう window へ）
+  window.STEADY_safeVibrate = safeVibrate;
+  window.STEADY_GACHA_TIMING = GACHA_TIMING;
+  window.STEADY_damagePopupDuration = damagePopupDuration;
+
+  // P5-12 streakFreeze / streak-flame / streakDays（炎アイコン上部固定 + freeze 月 2 回）
+  const STREAK_LS = {
+    days:     'steady_streakDays_v1',
+    freeze:   'steady_streakFreeze_v1',     // { count, lastGrantedYm }
+    lastDate: 'steady_streakLastDate_v1'
+  };
+  function getStreakState() {
+    const days = lsGet(STREAK_LS.days, 0);
+    const freeze = lsGet(STREAK_LS.freeze, { count: 0, lastGrantedYm: '' }) || { count: 0, lastGrantedYm: '' };
+    const lastDate = lsGet(STREAK_LS.lastDate, '');
+    return { days: days|0, streakFreeze: freeze, lastDate };
+  }
+  function grantMonthlyStreakFreeze() {
+    const st = getStreakState();
+    const now = new Date();
+    const ym = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+    if (st.streakFreeze.lastGrantedYm !== ym) {
+      // 月 2 回付与（上限 2）— Duolingo モデル
+      const fz = { count: Math.min(2, (st.streakFreeze.count|0) + 2), lastGrantedYm: ym };
+      lsSet(STREAK_LS.freeze, fz);
+      return fz;
+    }
+    return st.streakFreeze;
+  }
+  function renderStreakFlameFixed() {
+    let el = document.getElementById('streakFlameFixed');
+    const st = getStreakState();
+    grantMonthlyStreakFreeze();
+    const stf = getStreakState();
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'streakFlameFixed';
+      el.className = 'streak-flame-fixed';
+      el.setAttribute('aria-label', '連続練習日数（炎）');
+      document.body.appendChild(el);
+    }
+    const days = stf.days|0;
+    const fzCount = (stf.streakFreeze && stf.streakFreeze.count) | 0;
+    el.classList.toggle('empty', days === 0);
+    el.innerHTML =
+      '<span class="flame-icon" aria-hidden="true">🔥</span>' +
+      '<span class="streak-days">' + days + '</span>' +
+      '<span class="streak-label" style="font-size:0.7rem;opacity:0.85;">日</span>' +
+      (fzCount > 0
+        ? '<span class="streak-freeze-badge" title="月2回までストリーク救済">❄ ' + fzCount + '</span>'
+        : '');
+  }
+
+  // P5-7 HOME emo（body class トグル・既定 ON / hotfix HOME DOM 同一要素は触らない）
+  function applyHomeEmo() {
+    document.body.classList.add('home-emo');
+  }
+
+  // P5-13 D5 OLED 純黒モード（任意・既定 OFF）
+  function applyOledMode() {
+    const ON = lsGet('steady_oled_pure_black_v1', false) === true;
+    document.body.classList.toggle('oled-pure-black', ON);
+  }
+  function toggleOledMode() {
+    const cur = lsGet('steady_oled_pure_black_v1', false) === true;
+    lsSet('steady_oled_pure_black_v1', !cur);
+    applyOledMode();
+    return !cur;
+  }
+  window.STEADY_toggleOledMode = toggleOledMode;
+
+  // P5-2 damage popup spawn util（spawnDamagePopup(target, value, comboTier)）
+  function getComboTier(combo) {
+    // combo 0/10/30/60/100/200 で色階層
+    if (combo >= 200) return 5;
+    if (combo >= 100) return 4;
+    if (combo >= 60)  return 3;
+    if (combo >= 30)  return 2;
+    if (combo >= 10)  return 1;
+    return 0;
+  }
+  function spawnDamagePopup(targetEl, value, combo) {
+    if (!targetEl) return;
+    let layer = targetEl.querySelector(':scope > .damage-popup-layer');
+    if (!layer) {
+      layer = document.createElement('div');
+      layer.className = 'damage-popup-layer';
+      const cs = getComputedStyle(targetEl);
+      if (cs.position === 'static') targetEl.style.position = 'relative';
+      targetEl.appendChild(layer);
+    }
+    const pop = document.createElement('div');
+    const tier = getComboTier(combo|0);
+    pop.className = 'damage-popup tier-' + tier;
+    pop.textContent = (value > 0 ? '-' : '') + Math.abs(value|0);
+    pop.style.left = (40 + Math.random()*20) + '%';
+    pop.style.top = '20px';
+    layer.appendChild(pop);
+    // damagePopupDuration 後に DOM cleanup
+    setTimeout(() => { try { pop.remove(); } catch(_){} }, damagePopupDuration + 50);
+  }
+  window.STEADY_spawnDamagePopup = spawnDamagePopup;
+
+  // P5-11 hitstopMs = 50 / screenShake util（クリ専用 0.3s ／ 通常 0.1s ／ diminishing）
+  const hitstopMs = 50;
+  function applyScreenShake(targetEl, isCrit) {
+    if (!targetEl) return;
+    if (matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    targetEl.classList.add('screen-shake-target');
+    targetEl.classList.remove('shake-normal', 'shake-crit');
+    // 強制 reflow して animation を再適用
+    void targetEl.offsetWidth;
+    targetEl.classList.add(isCrit ? 'shake-crit' : 'shake-normal');
+    setTimeout(() => {
+      targetEl.classList.remove('shake-normal', 'shake-crit');
+    }, isCrit ? 320 : 110);
+  }
+  function applyHitstop(targetEl, isCrit) {
+    if (!targetEl) return;
+    if (!isCrit) return; // クリ専用
+    targetEl.classList.add('hitstop');
+    setTimeout(() => { targetEl.classList.remove('hitstop'); }, hitstopMs);
+  }
+  window.STEADY_hitstopMs = hitstopMs;
+  window.STEADY_applyScreenShake = applyScreenShake;
+  window.STEADY_applyHitstop = applyHitstop;
+
+  // P5-5 levelup cut-in（連続バッチ集約・skip 可・0.5-1.5s 中規模）
+  let _levelupBatchTimer = null;
+  let _levelupBatchCount = 0;
+  function levelUpBatch(newLv) {
+    _levelupBatchCount++;
+    if (_levelupBatchTimer) clearTimeout(_levelupBatchTimer);
+    _levelupBatchTimer = setTimeout(() => {
+      const cnt = _levelupBatchCount;
+      _levelupBatchCount = 0;
+      _levelupBatchTimer = null;
+      levelUpCutIn(newLv, cnt);
+    }, 320);
+  }
+  function levelUpCutIn(newLv, batchCount) {
+    if (matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      // reduced-motion：トースト風 1 行で代替
+      try { showToast('Lv ' + newLv + ' に到達（' + (batchCount|0) + '段）'); } catch(_){}
+      return;
+    }
+    const el = document.createElement('div');
+    el.className = 'levelup-cutin';
+    el.innerHTML =
+      '<div>LEVEL UP！ Lv ' + newLv + '</div>' +
+      ((batchCount|0) > 1 ? '<span class="levelup-batch">+' + batchCount + ' 連続レベルアップ</span>' : '') +
+      '<span class="levelup-skip-hint">タップで skip</span>';
+    document.body.appendChild(el);
+    const cleanup = () => { try { el.remove(); } catch(_){} };
+    el.addEventListener('click', cleanup);
+    setTimeout(cleanup, 1300);
+  }
+  window.STEADY_levelUpBatch = levelUpBatch;
+
+  // P5-8 METRO メトロノーム可視化 Canvas（±15ms 緑帯）
+  function setupMetroVizCanvas() {
+    const wrap = document.getElementById('metro-drift-indicator');
+    if (!wrap) return;
+    if (wrap.querySelector(':scope > .metro-viz-wrap')) return;
+    const vizWrap = document.createElement('div');
+    vizWrap.className = 'metro-viz-wrap';
+    vizWrap.innerHTML =
+      '<canvas id="metroVizCanvas" class="metro-viz-canvas AudioWaveform" aria-label="メトロ波形＋±15ms 緑帯"></canvas>' +
+      '<div class="metro-viz-legend"><span>−40ms</span><span>±15ms 緑帯</span><span>+40ms</span></div>';
+    wrap.appendChild(vizWrap);
+    const canvas = vizWrap.querySelector('#metroVizCanvas');
+    drawMetroViz(canvas);
+  }
+  function drawMetroViz(canvas) {
+    if (!canvas || !canvas.getContext) return;
+    const dpr = window.devicePixelRatio || 1;
+    const W = canvas.clientWidth || 320;
+    const H = 60;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    // bg
+    ctx.fillStyle = 'rgba(0,0,0,0.04)';
+    ctx.fillRect(0, 0, W, H);
+    // ±15ms 緑帯（中央 ±15/40 比率＝±37.5%）
+    const greenW = W * 0.375;
+    ctx.fillStyle = 'rgba(34,197,94,0.18)';
+    ctx.fillRect(W/2 - greenW/2, 4, greenW, H - 8);
+    // 中央線
+    ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+    ctx.beginPath(); ctx.moveTo(W/2, 0); ctx.lineTo(W/2, H); ctx.stroke();
+    // ダミー波形（実打鍵 drift 履歴から後続 hotfix で本格化）
+    ctx.strokeStyle = 'rgba(124,106,247,0.55)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let x = 0; x <= W; x += 4) {
+      const y = H/2 + Math.sin(x * 0.05) * 6 + Math.sin(x * 0.13) * 3;
+      if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  // P5-4 pity counter / P5-5 連勝・隠し妖怪解禁演出
+  // pity は SteadyGame state.pityCounter を読み込み・GAME ガチャブロックに描画
+  function renderPityCounter() {
+    const game = window.SteadyGame;
+    if (!game) return;
+    const state = (typeof game.loadState === 'function') ? game.loadState() : null;
+    if (!state) return;
+    if (typeof state.pityCounter !== 'number') state.pityCounter = 0;
+    const PITY_THRESHOLD = 30; // ガチャ 30 連で nextSSR 確定（業界標準寄り保守値）
+    const remaining = Math.max(0, PITY_THRESHOLD - (state.pityCounter|0));
+    const pct = 100 * Math.min(1, (state.pityCounter|0) / PITY_THRESHOLD);
+    const host = document.querySelector('#tab-game .game-section .gacha-row');
+    if (!host) return;
+    let cnt = document.getElementById('pityCounter');
+    if (!cnt) {
+      cnt = document.createElement('div');
+      cnt.id = 'pityCounter';
+      cnt.className = 'pity-counter';
+      host.parentElement && host.parentElement.appendChild(cnt);
+    }
+    cnt.classList.toggle('imminent', remaining <= 5);
+    cnt.innerHTML =
+      '<span title="次SSR まで残り">nextSSR まで残り <b>' + remaining + '</b> 回</span>' +
+      '<span class="pity-bar"><span class="pity-bar-fill" style="width:' + pct.toFixed(1) + '%"></span></span>';
+  }
+  window.STEADY_renderPityCounter = renderPityCounter;
+
+  // P5-6 enemy gold frame（プレステ後・battleEnemyTile に金枠付与）
+  function applyEnemyGoldFrame() {
+    const game = window.SteadyGame;
+    if (!game || typeof game.loadState !== 'function') return;
+    const state = game.loadState();
+    if (!state || !state.prestige) return;
+    const tile = document.getElementById('battleEnemyTile');
+    if (!tile) return;
+    const mul = 1 + (state.prestige|0) * 0.2;
+    tile.classList.add('enemy-gold-frame', 'boss-frame');
+    tile.dataset.prestigeMul = '敵×' + mul.toFixed(1);
+    tile.setAttribute('data-prestige-mul', '敵×' + mul.toFixed(1));
+  }
+  window.STEADY_applyEnemyGoldFrame = applyEnemyGoldFrame;
+
+  // Phase 5 init（boot 末尾で呼び出し）
+  function initPhase5() {
+    try { applyHomeEmo(); } catch(_){}
+    try { applyOledMode(); } catch(_){}
+    try { renderStreakFlameFixed(); } catch(_){}
+    try { setupMetroVizCanvas(); } catch(_){}
+    // GAME タブ表示時に pity / 敵金枠を反映
+    try {
+      setTimeout(() => {
+        renderPityCounter();
+        applyEnemyGoldFrame();
+      }, 800);
+    } catch(_){}
+  }
+  window.STEADY_initPhase5 = initPhase5;
+
+  // ----------------------------------------------------------
   // 26. boot
   // ----------------------------------------------------------
   function boot() {
@@ -4196,7 +4807,7 @@ main {
     try {
       if ('serviceWorker' in navigator) {
         const swCode = `
-          const CACHE = 'steady-v3.3.0r3';
+          const CACHE = 'steady-v3.3.0r3-p5';
           const URLS = ['./', './steady.html', './vendor/tone.js', './vendor/chart.js'];
           self.addEventListener('install', (e) => {
             e.waitUntil(caches.open(CACHE).then(c => c.addAll(URLS).catch(()=>{})));
@@ -4222,12 +4833,15 @@ main {
           });
         `;
         const blob = new Blob([swCode], { type: 'application/javascript' });
-        const swUrl = URL.createObjectURL(blob) + '?v=3.3.0r3';
+        const swUrl = URL.createObjectURL(blob) + '?v=3.3.0r3-p5';
         navigator.serviceWorker.register(swUrl).catch(err => { if (window.STEADY_DEBUG) console.warn('SW register failed:', err); });
       }
     } catch (_) { /* noop */ }
 
-    if (window.STEADY_DEBUG) console.log('STEADY DOJO QUEST v3.3.0r3 ready (上部タブ削除／BPM 不変ガード／メトロずれ視覚化／拍子 sequence／AutoBattle 一択／外的注意コピー／遅延 FB／desirable difficulty)');
+    // Phase 5 演出・洗練統合 init（boot 末尾呼び出し）
+    try { initPhase5(); } catch(e){ if (window.STEADY_DEBUG) console.warn('initPhase5 failed:', e); }
+
+    if (window.STEADY_DEBUG) console.log('STEADY DOJO QUEST v3.3.0r3-p5 ready (Phase 5 演出洗練統合・装備カード二層／damage popup／GACHA_TIMING／pity／レベルアップ batch／敵 HUD 金枠／HOME emo／METRO 波形／多階層 judgment＋ms／combo multiplier／hitstop+shake／streak／polish 5 点)');
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
