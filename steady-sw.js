@@ -26,8 +26,8 @@
 
 'use strict';
 
-// VERSION tag: 'block9-h2'（v3.3.0r1 hotfix：練習時間 XP 自動加算＋自己申告 UI＋振り返り UI・AL007 / 2026-05-07）
-const VERSION = 'steady-v3.3.0-block9-h2';
+// VERSION tag: 'block9-h3'（v3.3.0r2：UI リデザイン＋ HUD ＋下部タブ ＋押引妖 tight ＋メトロ音量 90 ＋耳訓練退役・AL007 / 2026-05-07）
+const VERSION = 'steady-v3.3.0-block9-h3';
 const CACHE_STATIC = VERSION + '-static';
 const CACHE_RUNTIME = VERSION + '-runtime';
 
@@ -36,11 +36,11 @@ const CACHE_RUNTIME = VERSION + '-runtime';
 const STEADY_DEBUG = false;
 
 // precache 対象（HTML 3つ＋shared 系＋vendor＋manifest＋icon）
+// v3.3.0r2：耳訓練機能廃止に伴い steady-ear-trainer.js / steady-ear.html を除外（D-2 受入条件）
 const PRECACHE_URLS = [
   './',
   './steady-core.html',
   './steady-game.html',
-  './steady-ear.html',
   './steady-shared.css',
   './steady-shared.js',
   './steady-game.js',
@@ -53,7 +53,6 @@ const PRECACHE_URLS = [
   './steady-recorder.js',
   './steady-stagnation.js',
   './steady-beat-wheel.js',
-  './steady-ear-trainer.js',
   './manifest.webmanifest',
   './steady-icon.svg',
   './404.html',
@@ -62,7 +61,7 @@ const PRECACHE_URLS = [
 ];
 
 // 旧 cache（v3.0/v3.1/旧 r2 試作）を一掃する prefix
-const OLD_CACHE_PREFIXES = ['steady-v3.0', 'steady-v3.1', 'steady-v3.2.0r2-block0', 'steady-v3.2.0r2-block1', 'steady-v3.2.0r2-block2', 'steady-v3.2.0r2-block3', 'steady-v3.2.0r2-block4', 'steady-v3.2.0r2-block5', 'steady-v3.2.0r2-block6', 'steady-v3.2.0r2-block7', 'steady-v3.2.0r2-block8-h1', 'steady-v3.2.0r2-block8-h2', 'steady-v3.2.0r2-block8-h3', 'steady-v3.2.0r2-block8-h4', 'steady-v3.2.0r2-block8-h5', 'steady-v3.2.0r2-block8-h6', 'steady-v3.3.0-block9-h1'];
+const OLD_CACHE_PREFIXES = ['steady-v3.0', 'steady-v3.1', 'steady-v3.2.0r2-block0', 'steady-v3.2.0r2-block1', 'steady-v3.2.0r2-block2', 'steady-v3.2.0r2-block3', 'steady-v3.2.0r2-block4', 'steady-v3.2.0r2-block5', 'steady-v3.2.0r2-block6', 'steady-v3.2.0r2-block7', 'steady-v3.2.0r2-block8-h1', 'steady-v3.2.0r2-block8-h2', 'steady-v3.2.0r2-block8-h3', 'steady-v3.2.0r2-block8-h4', 'steady-v3.2.0r2-block8-h5', 'steady-v3.2.0r2-block8-h6', 'steady-v3.3.0-block9-h1', 'steady-v3.3.0-block9-h2'];
 
 // -------------------------------------------------------------
 // install: 静的 precache
