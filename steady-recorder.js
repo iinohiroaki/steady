@@ -581,6 +581,10 @@
             lsSet(LS_KEYS.REC_LAST_UPLOAD, Date.now());
             lsSet(LS_KEYS.REMINDER_LAST_REC_ID, recordingId);
 
+            // v3.3.0r3 #7：3h 後の遅延 FB を予約 ＋ 14 件超過分を prune
+            try { scheduleDelayedFeedback(recordingId, summary); } catch (_) {}
+            try { pruneOldRecordings(); } catch (_) {}
+
             return {
               recordingId: recordingId,
               onset_count: wobbleMs.length,
@@ -592,7 +596,9 @@
               subdivision: subdivision,
               duration_sec: round1(durationSec),
               elapsed_ms: round1(elapsedMs),
-              dataset_for_chart: buildChartDataset(wobbleMs, onsetTimesMs)
+              dataset_for_chart: buildChartDataset(wobbleMs, onsetTimesMs),
+              // v3.3.0r3 #7：即時 FB は binary signal のみ
+              immediate_signal: getImmediateBinarySignal(summary)
             };
           });
         });
@@ -803,6 +809,145 @@
   }
 
   // -------------------------------------------------------------
+  // v3.3.0r3 #7：遅延フィードバック（Metcalfe 2009 PMC3034228）
+  //   - 録音直後の即時 FB は binary signals のみ（"on beat" / "behind" / "ahead"）
+  //   - 詳細スコア表示は 3 時間後に「振り返り」通知 → reflection modal
+  //   - 金曜 19:00 collage stitcher（Mon highlight + Wed + Fri 各 40-60s）
+  //   - 録音は最大 14 件に prune（LS メタは getRecordingMetaList() で IDB 経由で参照）
+  // -------------------------------------------------------------
+  var DELAY_FEEDBACK_HOURS = 3;
+  var DELAY_FEEDBACK_LS = 'steady_recorder_delayed_fb_v3_3';
+  var COLLAGE_LAST_LS = 'steady_recorder_collage_last_v3_3';
+  var MAX_RECORDINGS = 14;
+
+  // 遅延 FB 即時 binary 評価（onset から平均 wobble_ms を ±15ms threshold で 3 値化）
+  function getImmediateBinarySignal(wobbleSummary) {
+    if (!wobbleSummary || typeof wobbleSummary.mean_ms !== 'number') {
+      return { signal: 'unknown', label: '解析中…' };
+    }
+    var m = wobbleSummary.mean_ms;
+    if (Math.abs(m) <= 15) return { signal: 'on_beat', label: 'クリックにぴたり' };
+    if (m < -15) return { signal: 'ahead', label: '前ノリ気味（クリックより少し早い）' };
+    return { signal: 'behind', label: '後ノリ気味（クリックより少し遅い）' };
+  }
+
+  // 録音完了時に呼ぶ：3h 後に振り返り通知の予約 LS 登録
+  function scheduleDelayedFeedback(recordingId, wobbleSummary) {
+    if (typeof recordingId !== 'number') return false;
+    var queue = lsGet(DELAY_FEEDBACK_LS, []) || [];
+    if (!Array.isArray(queue)) queue = [];
+    queue.push({
+      recordingId: recordingId,
+      scheduledAt: Date.now() + DELAY_FEEDBACK_HOURS * 60 * 60 * 1000,
+      createdAt: Date.now(),
+      wobbleSummary: wobbleSummary || null,
+      shown: false
+    });
+    // 古い shown 済を 30 件以上残さない
+    queue = queue.slice(-30);
+    lsSet(DELAY_FEEDBACK_LS, queue);
+    return true;
+  }
+
+  // 起動時 / フォアグラウンド復帰時に呼ぶ：時間到達した遅延 FB を返す
+  function getPendingDelayedFeedback() {
+    var queue = lsGet(DELAY_FEEDBACK_LS, []) || [];
+    if (!Array.isArray(queue) || queue.length === 0) return null;
+    var now = Date.now();
+    for (var i = 0; i < queue.length; i++) {
+      var q = queue[i];
+      if (!q || q.shown) continue;
+      if (q.scheduledAt && q.scheduledAt <= now) {
+        return q;
+      }
+    }
+    return null;
+  }
+
+  function markDelayedFeedbackShown(recordingId) {
+    var queue = lsGet(DELAY_FEEDBACK_LS, []) || [];
+    if (!Array.isArray(queue)) return false;
+    var found = false;
+    for (var i = 0; i < queue.length; i++) {
+      if (queue[i] && queue[i].recordingId === recordingId) {
+        queue[i].shown = true;
+        queue[i].shownAt = Date.now();
+        found = true;
+      }
+    }
+    lsSet(DELAY_FEEDBACK_LS, queue);
+    return found;
+  }
+
+  // 録音 prune：最大 14 件・古い順に削除
+  function pruneOldRecordings() {
+    return idbListAll().then(function (list) {
+      if (!list || list.length <= MAX_RECORDINGS) return { pruned: 0 };
+      // createdAt 昇順で並んでいるので先頭が古い
+      var toDelete = list.slice(0, list.length - MAX_RECORDINGS);
+      return Promise.all(toDelete.map(function (m) { return idbDelete(m.id); })).then(function () {
+        return { pruned: toDelete.length };
+      });
+    });
+  }
+
+  // 金曜 19:00 collage 判定（Mon highlight + Wed + Fri 各 40-60s を抽出）
+  // 実装：collage 候補 ID 配列を返すだけ（再生 UI は呼び出し側）
+  function getFridayCollageCandidates() {
+    var now = new Date();
+    // 金曜 = 5（日=0..土=6）／19:00 以降のみ発火
+    if (now.getDay() !== 5 || now.getHours() < 19) {
+      return Promise.resolve({ ready: false, reason: 'not-friday-evening', dayOfWeek: now.getDay(), hour: now.getHours() });
+    }
+    // 当週月曜 0:00 を起点
+    var weekStart = new Date(now);
+    var diffToMon = (weekStart.getDay() + 6) % 7; // 月=0
+    weekStart.setDate(weekStart.getDate() - diffToMon);
+    weekStart.setHours(0, 0, 0, 0);
+    var weekStartMs = weekStart.getTime();
+    // 既に今週分 collage 済ならスキップ
+    var lastCollage = lsGet(COLLAGE_LAST_LS, null);
+    if (typeof lastCollage === 'number' && lastCollage >= weekStartMs) {
+      return Promise.resolve({ ready: false, reason: 'already-stitched-this-week' });
+    }
+    return idbListAll().then(function (list) {
+      var inWeek = (list || []).filter(function (r) {
+        return r.createdAt && r.createdAt >= weekStartMs && r.createdAt <= now.getTime();
+      });
+      if (inWeek.length === 0) {
+        return { ready: false, reason: 'no-recordings-this-week' };
+      }
+      // 月/水/金のうち最も新しい録音をピック（曜日毎）
+      var picks = { mon: null, wed: null, fri: null };
+      inWeek.forEach(function (r) {
+        var dow = new Date(r.createdAt).getDay();
+        if (dow === 1) picks.mon = (!picks.mon || r.createdAt > picks.mon.createdAt) ? r : picks.mon;
+        else if (dow === 3) picks.wed = (!picks.wed || r.createdAt > picks.wed.createdAt) ? r : picks.wed;
+        else if (dow === 5) picks.fri = (!picks.fri || r.createdAt > picks.fri.createdAt) ? r : picks.fri;
+      });
+      // 揃わない曜日は inWeek から代替（最新から埋める）
+      var sorted = inWeek.slice().sort(function (a, b) { return b.createdAt - a.createdAt; });
+      ['mon', 'wed', 'fri'].forEach(function (k) {
+        if (!picks[k]) picks[k] = sorted.shift() || null;
+      });
+      var ids = ['mon', 'wed', 'fri']
+        .map(function (k) { return picks[k] ? picks[k].id : null; })
+        .filter(function (x) { return x !== null; });
+      return {
+        ready: ids.length > 0,
+        reason: 'friday-collage-ready',
+        candidateIds: ids,
+        clipDurationSec: 50, // 40-60s 中央値
+        picks: picks
+      };
+    });
+  }
+
+  function markCollageStitched() {
+    lsSet(COLLAGE_LAST_LS, Date.now());
+  }
+
+  // -------------------------------------------------------------
   // 11. 補助 API
   // -------------------------------------------------------------
   function deleteRecording(id) {
@@ -851,7 +996,7 @@
   // 12. 公開 API
   // -------------------------------------------------------------
   global.SteadyRecorder = {
-    __version: 'v3.2.0r2-recorder-AL007p',
+    __version: 'v3.3.0r3-recorder-delayed-fb',
     // 命令書 export
     startRec: startRec,
     stopRec: stopRec,
@@ -865,6 +1010,16 @@
     setOnTick: setOnTick,
     markReminderShownToday: markReminderShownToday,
     recoverIncompleteSession: recoverIncompleteSession,
+    // v3.3.0r3 #7：遅延フィードバック（Metcalfe 2009）+ 金曜 collage + 14件 prune
+    getImmediateBinarySignal: getImmediateBinarySignal,
+    scheduleDelayedFeedback: scheduleDelayedFeedback,
+    getPendingDelayedFeedback: getPendingDelayedFeedback,
+    markDelayedFeedbackShown: markDelayedFeedbackShown,
+    pruneOldRecordings: pruneOldRecordings,
+    getFridayCollageCandidates: getFridayCollageCandidates,
+    markCollageStitched: markCollageStitched,
+    DELAY_FEEDBACK_HOURS: DELAY_FEEDBACK_HOURS,
+    MAX_RECORDINGS: MAX_RECORDINGS,
     // 内部公開（テスト/監査用）
     _internal: {
       LS_KEYS: LS_KEYS,
