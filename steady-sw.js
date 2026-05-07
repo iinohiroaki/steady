@@ -26,8 +26,8 @@
 
 'use strict';
 
-// VERSION tag: 'block9-h4'（v3.3.0r3：上部タブ削除／BPM 不変ガード／メトロずれ視覚化／拍子 sequence／AutoBattle 一択／外的注意コピー／遅延 FB／desirable difficulty・AL007 / 2026-05-08）
-const VERSION = 'steady-v3.3.0-block9-h4';
+// VERSION tag: 'block9-h5'（v3.3.0r3-p5：Phase 5 演出洗練統合・装備カード二層／damage popup／GACHA_TIMING／pity 可視化／レベルアップ batch／敵 HUD 金枠／HOME emo／METRO 波形／多階層 judgment＋ms／combo multiplier／hitstop+shake／streak loss aversion／polish 5 点・AL007 / 2026-05-08）
+const VERSION = 'steady-v3.3.0-block9-h5';
 const CACHE_STATIC = VERSION + '-static';
 const CACHE_RUNTIME = VERSION + '-runtime';
 
@@ -61,7 +61,7 @@ const PRECACHE_URLS = [
 ];
 
 // 旧 cache（v3.0/v3.1/旧 r2 試作）を一掃する prefix
-const OLD_CACHE_PREFIXES = ['steady-v3.0', 'steady-v3.1', 'steady-v3.2.0r2-block0', 'steady-v3.2.0r2-block1', 'steady-v3.2.0r2-block2', 'steady-v3.2.0r2-block3', 'steady-v3.2.0r2-block4', 'steady-v3.2.0r2-block5', 'steady-v3.2.0r2-block6', 'steady-v3.2.0r2-block7', 'steady-v3.2.0r2-block8-h1', 'steady-v3.2.0r2-block8-h2', 'steady-v3.2.0r2-block8-h3', 'steady-v3.2.0r2-block8-h4', 'steady-v3.2.0r2-block8-h5', 'steady-v3.2.0r2-block8-h6', 'steady-v3.3.0-block9-h1', 'steady-v3.3.0-block9-h2', 'steady-v3.3.0-block9-h3'];
+const OLD_CACHE_PREFIXES = ['steady-v3.0', 'steady-v3.1', 'steady-v3.2.0r2-block0', 'steady-v3.2.0r2-block1', 'steady-v3.2.0r2-block2', 'steady-v3.2.0r2-block3', 'steady-v3.2.0r2-block4', 'steady-v3.2.0r2-block5', 'steady-v3.2.0r2-block6', 'steady-v3.2.0r2-block7', 'steady-v3.2.0r2-block8-h1', 'steady-v3.2.0r2-block8-h2', 'steady-v3.2.0r2-block8-h3', 'steady-v3.2.0r2-block8-h4', 'steady-v3.2.0r2-block8-h5', 'steady-v3.2.0r2-block8-h6', 'steady-v3.3.0-block9-h1', 'steady-v3.3.0-block9-h2', 'steady-v3.3.0-block9-h3', 'steady-v3.3.0-block9-h4'];
 
 // -------------------------------------------------------------
 // install: 静的 precache
