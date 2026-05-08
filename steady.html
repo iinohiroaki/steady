@@ -216,6 +216,16 @@ header {
   font-size: 1.1rem; font-weight: 700; color: #dc2626;
   letter-spacing: 0.06em; min-height: 1.4em;
 }
+/* v3.3.0r3r2 A：録音 playback / 保存 UI（停止後に動的表示） */
+.home-record-playback { margin-top: 10px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.home-record-playback audio { width: 100%; max-width: 320px; }
+.home-record-playback .record-download {
+  display: inline-block; padding: 6px 14px; font-size: 0.92rem; font-weight: 600;
+  background: #dc2626; color: #fff; border-radius: 8px; text-decoration: none;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.home-record-playback .record-download:active { opacity: 0.85; }
+.home-record-playback .record-fallback-msg { font-size: 0.82rem; color: #888; }
 
 /* v3.3.0r3r1 Step 3：連符モード UI（2 行レーン：単純連符 6 / 複合連符 3） */
 .metro-tuplet-section {
@@ -1229,6 +1239,8 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
     <button id="homeRecordBtn" class="record-button" type="button"
             aria-label="録音開始" data-record-state="idle">🎤</button>
     <span id="homeRecordElapsed" class="record-elapsed" data-record-time>待機中</span>
+    <!-- v3.3.0r3r2 A：録音 playback / 保存 UI（停止時に動的挿入。MediaRecorder 対応時は <audio controls> + DL、非対応時は DL のみ） -->
+    <div id="homeRecordPlayback" class="home-record-playback" data-record-playback hidden></div>
   </div>
 </section>
 
@@ -2661,10 +2673,18 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
   let _sigSeqStepBarCnt = 0;      // 現 step 内で消化した bar 数
   // v3.3.0r3r1 M-1/M-2/T-3/T-4/T-6：メトロ単独 mic / 連符 sub-pulse / 期待時刻配列
   let _metroMicAttached = false;       // M-1：メトロ起動時に micStart 成功したか
-  let _subClickSynth = null;           // T-4：連符 sub-pulse 専用シンセ（メイン clickSynth と独立）
+  // v3.3.0r3r2 C：単純連符 / 複合連符を別 voice 化（EMP-3 補完項目）
+  // _simpleSubClickSynth：単純連符（duplet〜septuplet）用 — ピンクノイズ + 高域 BPF（既存 v3.3.0r3r1 互換）
+  // _compoundSubClickSynth：複合連符（2 拍 3 連 / 3 拍 4 連 / 4 拍 5 連）用 — 別音色（square + 中域 BPF）
+  // _subClickSynth は単純連符向けの後方互換 alias（下位互換 grep / window 経路維持）
+  let _simpleSubClickSynth = null;     // T-4 後継：単純連符 sub-pulse 専用シンセ
+  let _compoundSubClickSynth = null;   // C-1 新設：複合連符 sub-pulse 専用シンセ（別 voice）
+  let _subClickSynth = null;           // T-4 互換 alias（= _simpleSubClickSynth を指す）
   let _tupletConfig = {};              // T-2/T-3：現在再生中の連符パターン（startBeat 時にスナップショット）
   // T-6：1 拍ごとの期待時刻群（performance.now ベース・現拍 + 直前 1 拍分を保持して onset 比較）
-  // [{ ms: number, kind: 'beat'|'sub' }]  (古い方は最大 32 件で先頭から捨てる)
+  // [{ ms: number, kind: 'beat'|'sub' }]  (古い方は MAX_EXPECTED_TICK_BUF 件で先頭から捨てる)
+  // v3.3.0r3r2 D-1：マジックナンバー禁止・定数化（7 連符+4 拍 5 連同時瞬間溢れ対策で 128 件に拡張）
+  const MAX_EXPECTED_TICK_BUF = 128;
   const _expectedTickBuf = [];
   // v3.3.0r3r1 #B-2：連符状態 LS キー（チェック状態を保存・Step 3 で同キー維持／EMP-4 経路 c）
   const TUPLET_LS_KEY = 'steady_metro_tuplet_v33r3r1';
@@ -2874,10 +2894,10 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
   // ----------------------------------------------------------
   // T-6：期待時刻バッファ クリア
   function _expectedTickClear() { _expectedTickBuf.length = 0; }
-  // T-6：期待時刻 push（古い方は 32 件超で先頭から捨てる）
+  // T-6：期待時刻 push（古い方は MAX_EXPECTED_TICK_BUF 件超で先頭から捨てる／v3.3.0r3r2 D-1：定数化）
   function _expectedTickPush(ms, kind) {
     _expectedTickBuf.push({ ms: ms, kind: kind || 'beat' });
-    while (_expectedTickBuf.length > 32) _expectedTickBuf.shift();
+    while (_expectedTickBuf.length > MAX_EXPECTED_TICK_BUF) _expectedTickBuf.shift();
   }
   // T-6 / A-2：onset の performance.now 値に最近接の期待時刻を返す（連符 OFF/ON 共通）
   // 連符 OFF 時 = beat 期待時刻のみ／連符 ON 時 = beat + sub 期待時刻群から最近接
@@ -2906,9 +2926,10 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
   // M-2：grep / 外部接続用 export
   window.__steadyMetroDriftHook = onMetroOnset;
 
-  // T-4：連符 sub-pulse 専用シンセ（メイン clickSynth より弱音・別ピッチ）
+  // T-4：単純連符 sub-pulse 専用シンセ（メイン clickSynth より弱音・別ピッチ）
   // メイン C4/C3 と耳で区別がつくよう dB -12（音圧約 1/4）かつ短い envelope。
-  function buildSubClickSynth() {
+  // v3.3.0r3r2 C：buildSubClickSynth を buildSimpleSubClickSynth に rename（旧名は alias 保持）
+  function buildSimpleSubClickSynth() {
     if (typeof Tone === 'undefined') return null;
     const noise = new Tone.NoiseSynth({
       noise: { type: 'pink' },
@@ -2917,7 +2938,7 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
     const bpf = new Tone.Filter({ type: 'bandpass', frequency: 6500, Q: 6 });
     noise.connect(bpf); bpf.toDestination();
     return {
-      kind: 'subclick',
+      kind: 'subclick-simple',
       trigger: (n, d, time) => {
         try {
           if (time != null) noise.triggerAttackRelease(d || '64n', time);
@@ -2926,6 +2947,33 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
       },
       setVolume: (db) => { try { noise.volume.value = db; } catch(_){} },
       dispose: () => { try { noise.dispose(); bpf.dispose(); } catch(_){} }
+    };
+  }
+  // v3.3.0r3r2 C：旧名互換 alias（既存 grep `buildSubClickSynth` を保持）
+  function buildSubClickSynth() { return buildSimpleSubClickSynth(); }
+
+  // v3.3.0r3r2 C：複合連符 sub-pulse 専用シンセ（EMP-3 補完項目・単純連符と別 voice）
+  // 単純連符（noise-pink + 高域 BPF 6500Hz）と耳で判別できる別音色：
+  // → 矩形波ベース triangle 系 oscillator + 中域 BPF（2200Hz） + 短 envelope。
+  // pitch（B4/A4/G4）と音色（noise vs square）の二重分離で 3 連+2 拍 3 連同時 ON 時の判別性確保。
+  function buildCompoundSubClickSynth() {
+    if (typeof Tone === 'undefined') return null;
+    const synth = new Tone.Synth({
+      oscillator: { type: 'square' },
+      envelope: { attack: 0.001, decay: 0.020, sustain: 0, release: 0.012 }
+    });
+    const bpf = new Tone.Filter({ type: 'bandpass', frequency: 2200, Q: 4 });
+    synth.connect(bpf); bpf.toDestination();
+    return {
+      kind: 'subclick-compound',
+      trigger: (n, d, time) => {
+        try {
+          if (time != null) synth.triggerAttackRelease(n || 'B4', d || '64n', time);
+          else synth.triggerAttackRelease(n || 'B4', d || '64n');
+        } catch(_){}
+      },
+      setVolume: (db) => { try { synth.volume.value = db; } catch(_){} },
+      dispose: () => { try { synth.dispose(); bpf.dispose(); } catch(_){} }
     };
   }
   // T-4：sub-pulse 音量（メインより弱め）
@@ -3015,11 +3063,19 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
 
   // v3.3.0r3 #3：debounce（START ボタン連打防止・250ms）
   let _metroToggleDebounce = 0;
+  // v3.3.0r3r2 D-2：Tone.Transport.scheduleRepeat 予約 ID 配列（高速 START→STOP→START 解放漏れ対策）
+  // metroStop 時に Tone.Transport.clear(id) を個別に呼んでから Tone.Transport.cancel(0) で全消去。
+  let _scheduleIds = [];
   async function metroToggle() {
     const now = Date.now();
     if (now - _metroToggleDebounce < 250) return;
     _metroToggleDebounce = now;
     if (typeof Tone === 'undefined') { showToast('Tone.js 未ロード（vendor/tone.js を確認）', 4000); return; }
+    // v3.3.0r3r2 B：HOME 録音中はメトロ START 不可（micStart 再呼び出しで _micStream を上書きして HOME 側無音化する事故を防ぐ）
+    if (!_metroRunning && typeof isRecording !== 'undefined' && isRecording) {
+      try { showToast('HOME 録音中はメトロ起動不可（録音停止後に再試行）', 3000); } catch(_){}
+      return;
+    }
     if (_metroRunning) { metroStop(); return; }
     const btn = $('metroToggleBtn');
     if (btn) { btn.classList.add('is-loading'); btn.style.pointerEvents = 'none'; }
@@ -3043,11 +3099,19 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
       let curPresetKey = _sigSequence ? _sigSequence[0].presetKey : _selSigInfo.presetKey;
       const countIn = $('metroCountIn').checked;
       // v3.3.0r3r1 #B-3：連符パターンスナップショット（START 時点で固定）＋ sub シンセ準備
+      // v3.3.0r3r2 C：単純連符 / 複合連符を別 voice 化（EMP-3 補完項目）
       _tupletConfig = readTupletToggles();
-      const _hasAnyTuplet = Object.keys(_tupletConfig).some(k => _tupletConfig[k]);
-      if (_hasAnyTuplet) {
-        if (!_subClickSynth) _subClickSynth = buildSubClickSynth();
-        if (_subClickSynth && _subClickSynth.setVolume) _subClickSynth.setVolume(subClickVolume);
+      const _hasAnySimpleTuplet = Object.keys(TUPLET_SUBDIVISIONS).some(k => _tupletConfig[k]);
+      const _hasAnyCompoundTuplet = Object.keys(COMPOUND_TUPLETS).some(k => _tupletConfig[k]);
+      if (_hasAnySimpleTuplet) {
+        if (!_simpleSubClickSynth) _simpleSubClickSynth = buildSimpleSubClickSynth();
+        if (_simpleSubClickSynth && _simpleSubClickSynth.setVolume) _simpleSubClickSynth.setVolume(subClickVolume);
+        // 互換 alias 維持（既存 window/grep 経路向け・指す先は単純連符 voice）
+        _subClickSynth = _simpleSubClickSynth;
+      }
+      if (_hasAnyCompoundTuplet) {
+        if (!_compoundSubClickSynth) _compoundSubClickSynth = buildCompoundSubClickSynth();
+        if (_compoundSubClickSynth && _compoundSubClickSynth.setVolume) _compoundSubClickSynth.setVolume(subClickVolume);
       }
       // v3.3.0r3 #2：bpm 代入は safeSetTransportBpm() 経由（ガード前なので通る）
       safeSetTransportBpm(bpm);
@@ -3140,11 +3204,12 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
           const stepSec = spbSec / N;
           // i=0 はメイン拍と同時刻（sub は鳴らさない）。i=1..N-1 を予約。
           // sub-pulse  scheduleRepeat ではなく playBeat 内 trigger で予約（B-3 推奨方式）
+          // v3.3.0r3r2 C：単純連符は _simpleSubClickSynth 経由（複合連符と別 voice）
           for (let i = 1; i < N; i++) {
             const subAudioTime = time + stepSec * i;
             try {
-              if (_subClickSynth && _subClickSynth.trigger) {
-                _subClickSynth.trigger(pitch, '64n', subAudioTime);
+              if (_simpleSubClickSynth && _simpleSubClickSynth.trigger) {
+                _simpleSubClickSynth.trigger(pitch, '64n', subAudioTime);
               }
             } catch(_){}
             // T-6：sub-beat 期待時刻も記録（onset 比較で最近接判定に使う）
@@ -3191,6 +3256,8 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
       // 既存 playBeat（4n 周期）と独立並走し、sigSequence 拍子変化と相互干渉しない。
       // 各複合連符ごとに M 拍周期で scheduleRepeat 登録 → cb 内で N 個の sub-pulse を nested schedule。
       // 例：2 拍 3 連 → '2n.'（= '2n' + '4n' = 2 拍）周期 cb 内で t / t + 2*spb/3 / t + 4*spb/3 を予約
+      // v3.3.0r3r2 C：trigger 先を _compoundSubClickSynth（別 voice）に切替＋
+      // v3.3.0r3r2 D-2：scheduleRepeat 戻り値（id）を _scheduleIds に蓄積し metroStop で個別 clear
       const _scheduleCompoundTuplets = () => {
         const spbSec = 60 / bpm;
         Object.keys(COMPOUND_TUPLETS).forEach(id => {
@@ -3201,12 +3268,12 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
           // M 拍 = M * spbSec 秒。Tone.Transport の interval に秒指定を使い拍子変化と独立化
           const periodSec = M * spbSec;
           const stepSec = periodSec / N;
-          Tone.Transport.scheduleRepeat((time) => {
+          const repeatId = Tone.Transport.scheduleRepeat((time) => {
             for (let i = 0; i < N; i++) {
               const subAudioTime = time + stepSec * i;
               try {
-                if (_subClickSynth && _subClickSynth.trigger) {
-                  _subClickSynth.trigger(pitch, '64n', subAudioTime);
+                if (_compoundSubClickSynth && _compoundSubClickSynth.trigger) {
+                  _compoundSubClickSynth.trigger(pitch, '64n', subAudioTime);
                 }
               } catch(_){}
               // T-6 互換：sub-beat 期待時刻も記録（onset 比較で最近接判定に使う）
@@ -3216,9 +3283,13 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
               } catch(_){}
             }
           }, periodSec, 0);
+          // D-2：解放のための予約 ID 管理
+          if (typeof repeatId === 'number') _scheduleIds.push(repeatId);
         });
       };
 
+      // v3.3.0r3r2 D-2：START 直前に予約 ID 配列を初期化（前回の残骸が残らないように）
+      _scheduleIds = [];
       if (countIn) {
         // v3.3.0r3 hotfix complement（B-3）：countIn を AudioContext.currentTime ベースに統一。
         // setTimeout の累積誤差ではなく Web Audio 時刻軸で 4 拍を予約し、Transport も
@@ -3231,13 +3302,15 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
         }
         // 4 拍カウントイン後に Transport を起動（時刻指定 start で setTimeout 不要）
         const transportStartAt = startAt + 4 * spb;
-        Tone.Transport.scheduleRepeat((time) => playBeat(time), '4n');
+        const beatRepeatId = Tone.Transport.scheduleRepeat((time) => playBeat(time), '4n');
+        if (typeof beatRepeatId === 'number') _scheduleIds.push(beatRepeatId);
         _scheduleCompoundTuplets();
         Tone.Transport.start(transportStartAt);
         // _metroLoopId は legacy interface（metroStop の clearTimeout 経路は no-op で安全）
         _metroLoopId = null;
       } else {
-        Tone.Transport.scheduleRepeat((time) => playBeat(time), '4n');
+        const beatRepeatId = Tone.Transport.scheduleRepeat((time) => playBeat(time), '4n');
+        if (typeof beatRepeatId === 'number') _scheduleIds.push(beatRepeatId);
         _scheduleCompoundTuplets();
         Tone.Transport.start();
       }
@@ -3262,6 +3335,14 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
     _bpmLockedDuringPlay = false;
     _setBpmInputsDisabled(false);
     if (typeof Tone !== 'undefined') {
+      // v3.3.0r3r2 D-2：個別予約 ID を Tone.Transport.clear(id) で解放してから cancel(0) で全消去
+      // 高速 START→STOP→START の予約漏れ対策（cancel(0) は redundancy として残す）
+      try {
+        if (_scheduleIds && _scheduleIds.length) {
+          _scheduleIds.forEach(id => { try { Tone.Transport.clear(id); } catch(_){} });
+        }
+      } catch(_){}
+      _scheduleIds = [];
       try { Tone.Transport.stop(); Tone.Transport.cancel(0); } catch(_){}
     }
     if (_metroLoopId) { clearTimeout(_metroLoopId); _metroLoopId = null; }
@@ -5296,13 +5377,27 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
   }
 
   // ============================================================
-  // v3.3.0r3r1 B：HOME 録音大ボタン（既存 micStart / micStop 流用 ／ Step 2 導入・Step 3 継承）
+  // v3.3.0r3r1 B / v3.3.0r3r2 A：HOME 録音大ボタン（既存 micStart / micStop 流用 ／ Step 2 導入・Step 3 継承・r3r2 で MediaRecorder playback 実装）
   //   待機: 🎤 / 録音中: ⏹ + mm:ss
+  //   停止後: <audio controls src="blob:..."> + 保存ボタン（MediaRecorder 対応時）／<a download> のみ（iOS Safari fallback）
   // ============================================================
   let isRecording = false;
   let recordStartMs = 0;
   let recordTimer = null;
   let elapsedTime = 0;
+  // v3.3.0r3r2 A：MediaRecorder 関連 state（playback / 保存 UI 用）
+  let _mediaRecorder = null;
+  let recordedChunks = [];
+  let _lastRecordBlobUrl = null; // 直前の playback blob URL（次回録音開始時に revoke）
+  // v3.3.0r3r2 A：MediaRecorder MIME 候補（iOS Safari は audio/mp4・Chrome/Firefox は audio/webm 主流）
+  function _pickRecorderMime() {
+    if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported) return '';
+    const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4;codecs=mp4a.40.2', 'audio/mp4', 'audio/ogg;codecs=opus'];
+    for (let i = 0; i < candidates.length; i++) {
+      try { if (MediaRecorder.isTypeSupported(candidates[i])) return candidates[i]; } catch(_){}
+    }
+    return '';
+  }
   function recordingState() { return isRecording ? 'recording' : 'idle'; }
   function fmtMmSs(ms) {
     const s = Math.max(0, Math.floor(ms / 1000));
@@ -5314,6 +5409,43 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
     elapsedTime = performance.now() - recordStartMs;
     const el = $('homeRecordElapsed'); if (el) el.textContent = fmtMmSs(elapsedTime);
   }
+  // v3.3.0r3r2 A：playback / 保存 UI を描画（mime に応じて拡張子切替・iOS Safari は MediaRecorder 非対応 fallback）
+  function renderRecordPlayback(blob, mime) {
+    const box = $('homeRecordPlayback'); if (!box) return;
+    box.innerHTML = '';
+    box.hidden = false;
+    if (_lastRecordBlobUrl) { try { URL.revokeObjectURL(_lastRecordBlobUrl); } catch(_){} _lastRecordBlobUrl = null; }
+    if (!blob) {
+      // MediaRecorder 非対応 fallback：保存できなかった旨を表示
+      const msg = document.createElement('div');
+      msg.className = 'record-fallback-msg';
+      msg.textContent = 'この端末は録音保存に未対応（iOS Safari など）。録音時間のみ計測しました。';
+      box.appendChild(msg);
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    _lastRecordBlobUrl = url;
+    // 拡張子推定（webm / mp4 / ogg）
+    const ext = mime && mime.indexOf('mp4') !== -1 ? 'mp4'
+              : mime && mime.indexOf('ogg') !== -1 ? 'ogg'
+              : 'webm';
+    // <audio controls>（PC Chrome / Firefox / Android Chrome / iOS Safari 16+ なら playback 鳴動）
+    const audio = document.createElement('audio');
+    audio.id = 'playbackAudio';
+    audio.controls = true;
+    audio.src = url;
+    audio.preload = 'metadata';
+    box.appendChild(audio);
+    // 保存ボタン（<a download>）— iOS Safari 含む全環境で機能
+    const a = document.createElement('a');
+    a.id = 'downloadRecord';
+    a.className = 'record-download';
+    a.href = url;
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    a.download = 'steady-rec-' + stamp + '.' + ext;
+    a.textContent = '⬇ 保存（' + ext + '）';
+    box.appendChild(a);
+  }
   async function startHomeRecording() {
     if (isRecording) return;
     const btn = $('homeRecordBtn'), el = $('homeRecordElapsed');
@@ -5322,6 +5454,24 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
     let micOk = false;
     try { micOk = await micStart(()=>{}); } catch(err) { micOk = false; }
     if (!micOk) { if (el) el.textContent = 'マイク許可が必要'; return; }
+    // v3.3.0r3r2 A：MediaRecorder 構築（既存 _micStream 流用・新規録音 API は構築しない）
+    recordedChunks = [];
+    _mediaRecorder = null;
+    if (typeof MediaRecorder !== 'undefined' && _micStream) {
+      const mime = _pickRecorderMime();
+      try {
+        _mediaRecorder = mime ? new MediaRecorder(_micStream, { mimeType: mime }) : new MediaRecorder(_micStream);
+        _mediaRecorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+        };
+        _mediaRecorder.start();
+      } catch(err) {
+        if (window.STEADY_DEBUG) console.warn('[record] MediaRecorder start failed:', err);
+        _mediaRecorder = null; // fallback：時間計測のみ
+      }
+    }
+    // 直前の playback UI を非表示化（古い blob URL は renderRecordPlayback 内で revoke）
+    const pb = $('homeRecordPlayback'); if (pb) { pb.hidden = true; pb.innerHTML = ''; }
     isRecording = true;
     recordStartMs = performance.now();
     elapsedTime = 0;
@@ -5336,7 +5486,31 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
     if (!isRecording) return;
     isRecording = false;
     if (recordTimer) { clearInterval(recordTimer); recordTimer = null; }
-    try { micStop(); } catch(_){}
+    // v3.3.0r3r2 A：MediaRecorder.stop → onstop で blob 生成 → playback UI 描画
+    const mr = _mediaRecorder;
+    const recMime = (mr && mr.mimeType) || (typeof MediaRecorder === 'undefined' ? '' : (_pickRecorderMime() || 'audio/webm'));
+    if (mr && mr.state !== 'inactive') {
+      mr.onstop = () => {
+        try {
+          const blob = new Blob(recordedChunks, { type: recMime || 'audio/webm' });
+          renderRecordPlayback(blob, recMime || 'audio/webm');
+        } catch(err) {
+          if (window.STEADY_DEBUG) console.warn('[record] blob build failed:', err);
+          renderRecordPlayback(null);
+        }
+        try { micStop(); } catch(_){}
+      };
+      try { mr.stop(); } catch(_) {
+        try { micStop(); } catch(_){}
+        renderRecordPlayback(null);
+      }
+    } else {
+      // MediaRecorder 非対応 fallback：micStop のみ・playback 表示は fallback メッセージ
+      try { micStop(); } catch(_){}
+      // typeof MediaRecorder === 'undefined' なら iOS Safari 14 以前等
+      if (typeof MediaRecorder === 'undefined') renderRecordPlayback(null);
+    }
+    _mediaRecorder = null;
     const btn = $('homeRecordBtn'), el = $('homeRecordElapsed');
     if (btn) {
       btn.textContent = '🎤';
@@ -5440,17 +5614,17 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
       $('setCalibStatus').textContent = '較正済み：オフセット ' + off.offsetMs.toFixed(1) + ' ms';
     }
 
-    // SW 登録（v3.3.0r3r1 Step 3：連符 UI 再設計 + 拍子 5/4・7/8・9/8 + アクセント preset）
-    window.__version = 'v3.3.0r3r1-step3';
+    // SW 登録（v3.3.0r3r2 hotfix：録音 playback 実装 + EMP-3 別 voice + メトロ衝突 block + 軽微 2 件）
+    window.__version = 'v3.3.0r3r2';
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./steady-sw.js?v=3.3.0r3r1-step3', { scope: './' })
+      navigator.serviceWorker.register('./steady-sw.js?v=3.3.0r3r2', { scope: './' })
         .catch(err => { if (window.STEADY_DEBUG) console.warn('SW register failed:', err); });
     }
 
     // Phase 5 演出・洗練統合 init（boot 末尾呼び出し）
     try { initPhase5(); } catch(e){ if (window.STEADY_DEBUG) console.warn('initPhase5 failed:', e); }
 
-    if (window.STEADY_DEBUG) console.log('STEADY DOJO QUEST v3.3.0r3r1-step3 ready (Step 3：連符 UI 再設計 + 拍子 5/4・7/8・9/8 + アクセント preset／Phase 5 機能継承)');
+    if (window.STEADY_DEBUG) console.log('STEADY DOJO QUEST v3.3.0r3r2 ready (録音 playback 実装 + EMP-3 別 voice + メトロ衝突 block + 軽微 2 件／Phase 5 機能継承)');
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
