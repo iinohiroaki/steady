@@ -26,8 +26,8 @@
 
 'use strict';
 
-// VERSION tag: 'v3.3.0r4'（v3.3.0r4：ポリリズム 3:2 / 3:4 / 4:3 実装 = math emo 必須言語完成最終ピース／AL007 / 2026-05-08）
-const VERSION = 'steady-v3.3.0r4';
+// VERSION tag: 'v3.3.0r4-hotfix1'（精度判定 root cause hotfix：閾値緩和 0.06→0.020 / pad 常時表示 / RMS UI / silent failure ガード／AL007 / 2026-05-08）
+const VERSION = 'steady-v3.3.0r4-hotfix1';
 const CACHE_STATIC = VERSION + '-static';
 const CACHE_RUNTIME = VERSION + '-runtime';
 
