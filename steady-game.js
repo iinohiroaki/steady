@@ -2604,7 +2604,7 @@
   // 19. 公開 API
   // -------------------------------------------------------------
   global.SteadyGame = {
-    __version: 'v3.3.0-block9-h5',
+    __version: 'v3.3.0-block9-h6',
     /* v3.3.0r3-p5 Phase 5 リサーチ駆動定数 */
     PERFECT_WINDOW_MS: PERFECT_WINDOW_MS,
     GREAT_WINDOW_MS: GREAT_WINDOW_MS,
