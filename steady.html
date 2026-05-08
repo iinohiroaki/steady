@@ -173,6 +173,50 @@ header {
 .metro-tap-pad:active { opacity: 0.75; transform: scale(0.98); }
 .metro-tap-pad[hidden] { display: none; }
 
+/* v3.3.0r3r1-step2 A：Tap Tempo ボタン（メトロ画面内・既存 BPM 入力へ自動反映）
+   AL001 v2 仕様：rolling window 4-8 + median filter + 1.5s reset + 30-300 BPM フィルタ + iOS pointerdown */
+.metro-tap-tempo {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 88px; padding: 10px 16px; margin-left: 8px;
+  font-size: 0.95rem; font-weight: 700; letter-spacing: 0.04em;
+  background: var(--accent, #7c6af7); color: #fff;
+  border: none; border-radius: 8px; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  transition: opacity 0.15s, transform 0.05s;
+}
+.metro-tap-tempo:active { opacity: 0.78; transform: scale(0.96); }
+.metro-tap-tempo .tap-hint { font-size: 0.72rem; opacity: 0.85; margin-left: 6px; font-weight: 500; }
+
+/* v3.3.0r3r1-step2 B：HOME 録音大ボタン（直径 76px 採用・Apple HIG / iOS Voice Memo 準拠）
+   採用直径 76px（仕様レンジ 64-80px の中間・親指タップ域 44pt 超 + 重要度高さ表現） */
+.home-record-card { text-align: center; }
+.record-button {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 76px; height: 76px; margin: 6px auto;
+  font-size: 30px; line-height: 1;
+  background: #dc2626; color: #fff;
+  border: 3px solid #fff; border-radius: 50%;
+  box-shadow: 0 0 0 2px #dc2626, 0 4px 14px rgba(220,38,38,0.45);
+  cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  transition: transform 0.08s, border-radius 0.18s, box-shadow 0.18s;
+}
+.record-button:active { transform: scale(0.94); }
+.record-button.recording { /* record-active 状態（赤四角に変形） */
+  border-radius: 14px;
+  box-shadow: 0 0 0 2px #dc2626, 0 0 18px rgba(220,38,38,0.7);
+  animation: record-pulse 1.4s ease-in-out infinite;
+}
+@keyframes record-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px #dc2626, 0 0 14px rgba(220,38,38,0.55); }
+  50%      { box-shadow: 0 0 0 2px #dc2626, 0 0 24px rgba(220,38,38,0.95); }
+}
+.record-elapsed {
+  display: block; margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.1rem; font-weight: 700; color: #dc2626;
+  letter-spacing: 0.06em; min-height: 1.4em;
+}
+
 /* v3.3.0r3r1 #B-1：連符モード UI */
 .metro-tuplet-section {
   margin: 10px 0 12px; padding: 10px 12px;
@@ -1140,6 +1184,15 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
     </div>
     <div class="muted-text small" id="homeIkkiRecord" style="margin-top:6px;"></div>
   </div>
+
+  <!-- v3.3.0r3r1-step2 B：HOME 録音大ボタン（home-emo セクション下部中央・既存 micStart / micStop 流用・配線追加のみ） -->
+  <div class="card-secondary home-record-card home-emo-record" data-record-zone data-home-emo-record>
+    <div class="card-meta">叩いて記録</div>
+    <div class="muted-text small">スマホ／PC のマイクで素振りを録る。押すと開始、もう一度押すと停止。</div>
+    <button id="homeRecordBtn" class="record-button" type="button"
+            aria-label="録音開始" data-record-state="idle">🎤</button>
+    <span id="homeRecordElapsed" class="record-elapsed" data-record-time>待機中</span>
+  </div>
 </section>
 
 <!-- ============================================================
@@ -1157,6 +1210,9 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
     <div class="row" style="margin-bottom:12px;">
       <input type="range" id="metroBpmSlider" min="40" max="240" value="100" class="grow">
       <input type="number" id="metroBpmInput" min="40" max="240" value="100">
+      <!-- v3.3.0r3r1-step2 A：Tap Tempo（rolling 4-8 + median + 1.5s reset + 30-300 BPM フィルタ + iOS pointerdown） -->
+      <button id="metroTapTempoBtn" class="metro-tap-tempo" type="button"
+              data-tap-tempo aria-label="Tap Tempo">TAP<span class="tap-hint" id="metroTapTempoHint">×0</span></button>
     </div>
     <div class="row" style="margin-bottom:12px;">
       <label class="field" for="metroSig">拍子</label>
@@ -4975,6 +5031,106 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
   }
   window.STEADY_applyEnemyGoldFrame = applyEnemyGoldFrame;
 
+  // ============================================================
+  // v3.3.0r3r1-step2 A：Tap Tempo（AL001 v2 仕様確定実装）
+  //   rolling window 4-8 + median filter + 1.5s reset
+  //   30-300 BPM フィルタ / iOS pointerdown + performance.now()
+  // ============================================================
+  const TAP_RESET = 1500;            // 1.5 秒無入力で window reset
+  const TAP_WINDOW_MAX = 8;          // 直近 8 タップ保持
+  const TAP_WINDOW_MIN = 2;          // 最低 2 タップで暫定 BPM
+  const TAP_BPM_MIN = 30, TAP_BPM_MAX = 300;
+  let tapTimes = [];
+  function tapTempoMedian(arr) {
+    if (!arr.length) return 0;
+    const s = arr.slice().sort((a,b)=>a-b), m = Math.floor(s.length/2);
+    return (s.length % 2) ? s[m] : (s[m-1] + s[m]) / 2;
+  }
+  function tapTempo() {
+    const now = performance.now();
+    if (tapTimes.length && (now - tapTimes[tapTimes.length-1]) > TAP_RESET) tapTimes = []; // 1500ms reset
+    tapTimes.push(now);
+    if (tapTimes.length > TAP_WINDOW_MAX) tapTimes.shift();
+    const hint = $('metroTapTempoHint'); if (hint) hint.textContent = '×' + tapTimes.length;
+    if (tapTimes.length < TAP_WINDOW_MIN) return;
+    const intervals = [];
+    for (let i=1; i<tapTimes.length; i++) intervals.push(tapTimes[i] - tapTimes[i-1]);
+    const med = tapTempoMedian(intervals);
+    if (!med) return;
+    const bpm = Math.round(60000 / med);
+    if (bpm < TAP_BPM_MIN || bpm > TAP_BPM_MAX) return; // 30-300 範囲外フィルタ
+    // 既存 BPM 入力フィールドへ自動反映（metroSetBpm が 40-240 にクランプ）
+    try { metroSetBpm(bpm); } catch(_){}
+  }
+  function setupTapTempo() {
+    const btn = $('metroTapTempoBtn'); if (!btn || btn._tapBound) return;
+    btn._tapBound = true;
+    // iOS Safari 補正：pointerdown（mousedown / touchstart より遅延少）
+    btn.addEventListener('pointerdown', (e) => { e.preventDefault(); tapTempo(); });
+    btn.addEventListener('click', (e) => e.preventDefault()); // 二重発火抑止
+  }
+
+  // ============================================================
+  // v3.3.0r3r1-step2 B：HOME 録音大ボタン（既存 micStart / micStop 流用）
+  //   待機: 🎤 / 録音中: ⏹ + mm:ss
+  // ============================================================
+  let isRecording = false;
+  let recordStartMs = 0;
+  let recordTimer = null;
+  let elapsedTime = 0;
+  function recordingState() { return isRecording ? 'recording' : 'idle'; }
+  function fmtMmSs(ms) {
+    const s = Math.max(0, Math.floor(ms / 1000));
+    const m = Math.floor(s / 60), r = s % 60;
+    return String(m).padStart(2,'0') + ':' + String(r).padStart(2,'0');
+  }
+  function recDuration() { return elapsedTime; }
+  function updateRecordTimer() {
+    elapsedTime = performance.now() - recordStartMs;
+    const el = $('homeRecordElapsed'); if (el) el.textContent = fmtMmSs(elapsedTime);
+  }
+  async function startHomeRecording() {
+    if (isRecording) return;
+    const btn = $('homeRecordBtn'), el = $('homeRecordElapsed');
+    if (!btn) return;
+    // 既存 micStart 流用：onset callback は未使用（録音時間計測のみ）
+    let micOk = false;
+    try { micOk = await micStart(()=>{}); } catch(err) { micOk = false; }
+    if (!micOk) { if (el) el.textContent = 'マイク許可が必要'; return; }
+    isRecording = true;
+    recordStartMs = performance.now();
+    elapsedTime = 0;
+    btn.textContent = '⏹';
+    btn.classList.add('recording'); // record-active 状態（CSS .record-button.recording）
+    btn.setAttribute('aria-label', '録音停止');
+    btn.dataset.recordState = 'recording';
+    if (el) el.textContent = '00:00';
+    recordTimer = setInterval(updateRecordTimer, 250);
+  }
+  function stopHomeRecording() {
+    if (!isRecording) return;
+    isRecording = false;
+    if (recordTimer) { clearInterval(recordTimer); recordTimer = null; }
+    try { micStop(); } catch(_){}
+    const btn = $('homeRecordBtn'), el = $('homeRecordElapsed');
+    if (btn) {
+      btn.textContent = '🎤';
+      btn.classList.remove('recording');
+      btn.setAttribute('aria-label', '録音開始');
+      btn.dataset.recordState = 'idle';
+    }
+    if (el) el.textContent = fmtMmSs(elapsedTime) + ' 録音終了';
+    try { showToast('録音終了：' + fmtMmSs(elapsedTime), 2500); } catch(_){}
+  }
+  function setupHomeRecordButton() {
+    const btn = $('homeRecordBtn'); if (!btn || btn._recBound) return;
+    btn._recBound = true;
+    btn.addEventListener('click', () => {
+      if (isRecording) stopHomeRecording();
+      else startHomeRecording();
+    });
+  }
+
   // Phase 5 init（boot 末尾で呼び出し）
   function initPhase5() {
     try { applyHomeEmo(); } catch(_){}
@@ -4984,6 +5140,9 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
     // v3.3.0r3r1 hotfix：連符 UI 初期化＋タップパッド bind（Phase 5 とは独立スコープ）
     try { initTupletUI(); } catch(_){}
     try { setupMetroTapFallback(); } catch(_){}
+    // v3.3.0r3r1-step2：Tap Tempo + HOME 録音大ボタン bind
+    try { setupTapTempo(); } catch(_){}
+    try { setupHomeRecordButton(); } catch(_){}
     // GAME タブ表示時に pity / 敵金枠を反映
     try {
       setTimeout(() => {
@@ -5056,16 +5215,17 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
       $('setCalibStatus').textContent = '較正済み：オフセット ' + off.offsetMs.toFixed(1) + ' ms';
     }
 
-    // SW 登録（v3.3.0r3r1 Step 1：物理 steady-sw.js へ一元化）
+    // SW 登録（v3.3.0r3r1 Step 2：Tap Tempo + 録音 HOME 大ボタン化）
+    window.__version = 'v3.3.0r3r1-step2';
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./steady-sw.js?v=3.3.0r3r1-step1', { scope: './' })
+      navigator.serviceWorker.register('./steady-sw.js?v=3.3.0r3r1-step2', { scope: './' })
         .catch(err => { if (window.STEADY_DEBUG) console.warn('SW register failed:', err); });
     }
 
     // Phase 5 演出・洗練統合 init（boot 末尾呼び出し）
     try { initPhase5(); } catch(e){ if (window.STEADY_DEBUG) console.warn('initPhase5 failed:', e); }
 
-    if (window.STEADY_DEBUG) console.log('STEADY DOJO QUEST v3.3.0r3r1-step1 ready (Step 1：SW 二重登録解消・物理 steady-sw.js 一元化／Phase 5 機能継承)');
+    if (window.STEADY_DEBUG) console.log('STEADY DOJO QUEST v3.3.0r3r1-step2 ready (Step 2：Tap Tempo + 録音 HOME 大ボタン化／Phase 5 機能継承)');
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
