@@ -62,6 +62,13 @@
   --border: #e5e7eb;
   --muted: #6b7280;
   --danger: #dc2626; /* 機能カラー：破壊的操作（全データ削除・STOP）専用。視覚言語2色宣言の例外。 */
+  /* v3.3.0r4-hotfix1 C：RMS リアルタイム表示の 3 色（threshold 比較で red/yellow/green）
+     v3.3.0r4-hotfix1.2 Q3：AL011 二次検証反映（CEO hallucination 誤記訂正）
+     v3.3.0r4-hotfix1.2 final：AL011 三次再計算で実測値に再訂正（CEO hallucination 第二弾検出・hotfix1.3 候補確定）
+     - 全数値は AL011 sRGB→linear→相対輝度→比 一次計算結果（CEO 申告値ではなく監査実測） */
+  --bad:  #dc3545; /* light on white 4.34:1 FAIL / dark on #0F0F12 4.38:1 FAIL（hotfix1.3 で再選定要） */
+  --warn: #856404; /* light on white 5.49:1 PASS / dark on #0F0F12 3.46:1 FAIL（hotfix1.3 で dark override 要） */
+  --good: #1e7e34; /* light on white 5.08:1 PASS（dark は body.dark で #28a745 override） */
   --maxw: 720px;
 
   /* ============================================================
@@ -96,6 +103,8 @@ body.dark {
   --c-bg: #0F0F12;
   --c-fg: #F3F4F6;
   --c-muted: #9CA3AF;
+  /* v3.3.0r4-hotfix1.2 Q3：dark mode 用 RMS UI override（light で AA 通す値が dark で悪化するため別値） */
+  --good: #28a745; /* dark on #0F0F12 6.16:1 PASS（AL011 三次実測・light は #1e7e34 維持） */
 }
 * { box-sizing: border-box; }
 html, body {
@@ -450,6 +459,10 @@ textarea { width: 100%; min-height: 60px; resize: vertical; }
 }
 
 .muted-text { color: var(--muted); font-size: 0.85rem; }
+/* v3.3.0r4-hotfix1 C：RMS リアルタイム表示の色変え 3 段階 */
+.mic-rms-red    { color: var(--bad); }
+.mic-rms-yellow { color: var(--warn); }
+.mic-rms-green  { color: var(--good); }
 .small { font-size: 0.82rem; }
 
 /* オーバーレイ（ストップ操作用） */
@@ -1341,6 +1354,8 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
         <div class="drift-track-center"></div>
         <div class="drift-dots" id="driftViz"></div>
       </div>
+      <!-- v3.3.0r4-hotfix1 C：RMS リアルタイム表示（threshold 比較で 3 色・mic 感度視認用） -->
+      <div class="muted-text small" id="micRmsLive" style="margin-top:4px;">RMS: 0.000 / threshold: 0.020</div>
       <div class="drift-legend">
         <span>← 先走り</span>
         <span>ジャスト</span>
@@ -2675,6 +2690,12 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
   //     #5 拍子 sequence UI（4/4 x 2 → 6/8 x 1 形式・bar 単位 transport 連続維持）
   // ----------------------------------------------------------
   let _metroRunning = false;
+  // v3.3.0r4-hotfix1 D-2：メトロ start 時刻（performance.now ベース）／3 秒 onset ゼロ判定の基準時刻
+  let _metroStartMs = 0;
+  // v3.3.0r4-hotfix1 D-2：mic 不動 toast を 1 セッション 1 回に抑止するフラグ
+  let _micFallbackToastFired = false;
+  // v3.3.0r4-hotfix1 D-2：3 秒判定タイマー ID（metroStop 時に clear）
+  let _micWorkingCheckTid = 0;
   let _metroBeatIdx = 0;
   let _metroSynth = null;
   let _metroLoopId = null;
@@ -3135,14 +3156,14 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
     });
   }
 
-  // M-1：mic 状態に応じてタップパッド表示を切替
+  // v3.3.0r4-hotfix1 B：tap pad 常時表示（mic 並走）
+  // 旧 r3r1 仕様：mic 取得成功時は pad 隠す（_metroMicAttached）→ mic 感度不足時に詰む二重詰み
+  // 新仕様：メトロ稼働中は mic 状態に関わらず常時表示・mic + tap 両経路から onMetroOnset を呼ぶ
+  // C1 補完：停止中は隠す（pad 表示しても _metroRunning チェックで onset 受け付けず無意味＋UI 占有ノイズ）
   function _updateTapPadVisibility() {
     const pad = document.getElementById('metroTapPad');
     if (!pad) return;
-    // メトロ停止中 = 隠す
-    if (!_metroRunning) { pad.hidden = true; return; }
-    // メトロ稼働中：mic 取得失敗時のみ表示（マイク有り時はタップ不要）
-    pad.hidden = _metroMicAttached;
+    pad.hidden = !_metroRunning;
   }
 
   // v3.3.0r3 #3：debounce（START ボタン連打防止・250ms）
@@ -3427,6 +3448,9 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
 
       // v3.3.0r3r2 D-2：START 直前に予約 ID 配列を初期化（前回の残骸が残らないように）
       _scheduleIds = [];
+      // v3.3.0r4-hotfix1 D-2：start 時刻を確定（3 秒 onset ゼロ判定の基準）
+      _metroStartMs = performance.now();
+      _micFallbackToastFired = false;
       if (countIn) {
         // v3.3.0r3 hotfix complement（B-3）：countIn を AudioContext.currentTime ベースに統一。
         // setTimeout の累積誤差ではなく Web Audio 時刻軸で 4 拍を予約し、Transport も
@@ -3444,6 +3468,9 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
         _scheduleCompoundTuplets();
         _schedulePolyrhythms();
         Tone.Transport.start(transportStartAt);
+        // v3.3.0r4-hotfix1 D-3：start 直後の数百 ms タップが空 buf で捨てられる窓を消す
+        // C2 補完（AL012 文章監査）：原典 AL011 §6(d) 通り performance.now() のみ（+50ms オフセット撤回）
+        try { _expectedTickPush(performance.now(), 'beat'); } catch(_){}
         // _metroLoopId は legacy interface（metroStop の clearTimeout 経路は no-op で安全）
         _metroLoopId = null;
       } else {
@@ -3452,8 +3479,22 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
         _scheduleCompoundTuplets();
         _schedulePolyrhythms();
         Tone.Transport.start();
+        // v3.3.0r4-hotfix1 D-3：start 直後の buf 空窓を埋める（countIn なし経路）
+        try { _expectedTickPush(performance.now(), 'beat'); } catch(_){}
       }
       _metroRunning = true;
+      // v3.3.0r4-hotfix1 D-2：3 秒以内に onset 1 回も来なければ tap fallback を toast で促す
+      // _metroMicAttached が true（micStart 成功）でも実際に onset 出てない silent failure を救う
+      // fired フラグ＋_metroRunning 内チェックで二重保険・stop 後誤発火防止
+      if (_metroMicAttached) {
+        _micWorkingCheckTid = setTimeout(() => {
+          if (_metroRunning && !_micFallbackToastFired && _lastOnsetMs < _metroStartMs) {
+            _micFallbackToastFired = true;
+            try { showToast('マイク感度低。タップで代用してください', 3500); } catch(_){}
+            // pad は B で常時表示済のため追加表示処理不要
+          }
+        }, 3000);
+      }
       if (btn) btn.textContent = 'STOP';
     } finally {
       if (btn) { btn.classList.remove('is-loading'); btn.style.pointerEvents = ''; }
@@ -3486,6 +3527,8 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
     }
     if (_metroLoopId) { clearTimeout(_metroLoopId); _metroLoopId = null; }
     if (_driftRaf) { cancelAnimationFrame(_driftRaf); _driftRaf = 0; }
+    // v3.3.0r4-hotfix1 D-2：3 秒判定タイマーを stop 時に clear（誤発火防止の物理担保）
+    if (_micWorkingCheckTid) { try { clearTimeout(_micWorkingCheckTid); } catch(_){} _micWorkingCheckTid = 0; }
     // v3.3.0r3r1 M-1：メトロ起動時に CEO が立ち上げた mic を対称停止
     // （_metroMicAttached フラグで道場側 micStart と衝突しないようガード）
     if (_metroMicAttached) {
@@ -3511,6 +3554,13 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
   let _onsetCb = null;
   let _lastOnsetMs = 0;
   const ONSET_REFRACTORY = 60;
+  // v3.3.0r4-hotfix1 A：マイク onset 閾値定数化＋緩和
+  // 0.06 → 0.020：PC 内蔵マイク + 距離 60-80cm でも届く帯域（root cause #1 解消）
+  // 1.6  → 1.4：連符 / 連打耐性向上（edge detector 化を防ぐ）
+  const MIC_RMS_THRESHOLD = 0.020;
+  const MIC_RMS_RATIO     = 1.4;
+  // v3.3.0r4-hotfix1 C：RMS リアルタイム表示の throttle 用
+  let _micRmsLastUpdateMs = 0;
 
   async function micStart(onOnset) {
     if (_micStream) micStop();
@@ -3531,6 +3581,10 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
         _audioCtx.addEventListener && _audioCtx.addEventListener('statechange', () => {
           if (_audioCtx && (_audioCtx.state === 'interrupted' || _audioCtx.state === 'closed')) {
             try { micStop(); } catch(_){}
+            // v3.3.0r4-hotfix1 D-1：mic 中断時に _metroMicAttached を false に戻し pad を復活
+            // 旧 r3r1：micStop は呼ぶが _metroMicAttached が true 残置 → pad 復活せず三重詰みの一角
+            _metroMicAttached = false;
+            try { _updateTapPadVisibility(); } catch(_){}
             showToast('マイク中断。再度開始してください', 3000);
           }
         });
@@ -3555,9 +3609,20 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
       let s = 0; for (let i=0;i<buf.length;i++) s += buf[i]*buf[i];
       const rms = Math.sqrt(s / buf.length);
       const now = performance.now();
-      if (rms > 0.06 && rms > lastRms * 1.6 && (now - _lastOnsetMs) > ONSET_REFRACTORY) {
+      if (rms > MIC_RMS_THRESHOLD && rms > lastRms * MIC_RMS_RATIO && (now - _lastOnsetMs) > ONSET_REFRACTORY) {
         _lastOnsetMs = now;
         if (_onsetCb) try { _onsetCb(now, rms); } catch(_){}
+      }
+      // v3.3.0r4-hotfix1 C：RMS リアルタイム表示（100ms throttle・threshold 比較で 3 色）
+      if (now - _micRmsLastUpdateMs > 100) {
+        _micRmsLastUpdateMs = now;
+        const el = document.getElementById('micRmsLive');
+        if (el) {
+          const ratio = rms / MIC_RMS_THRESHOLD;
+          const colorClass = ratio >= 1.0 ? 'green' : (ratio >= 0.7 ? 'yellow' : 'red');
+          el.textContent = 'RMS: ' + rms.toFixed(3) + ' / threshold: ' + MIC_RMS_THRESHOLD.toFixed(3);
+          el.className = 'muted-text small mic-rms-' + colorClass;
+        }
       }
       lastRms = rms;
       _micRaf = requestAnimationFrame(loop);
@@ -5753,10 +5818,10 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
       $('setCalibStatus').textContent = '較正済み：オフセット ' + off.offsetMs.toFixed(1) + ' ms';
     }
 
-    // SW 登録（v3.3.0r4：ポリリズム 3:2 / 3:4 / 4:3 実装 = math emo 必須言語完成最終ピース）
-    window.__version = 'v3.3.0r4';
+    // SW 登録（v3.3.0r4-hotfix1：精度判定 root cause hotfix・閾値 0.020 / pad 常時表示 / RMS UI / silent failure ガード）
+    window.__version = 'v3.3.0r4-hotfix1';
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./steady-sw.js?v=3.3.0r4', { scope: './' })
+      navigator.serviceWorker.register('./steady-sw.js?v=3.3.0r4-hotfix1', { scope: './' })
         .catch(err => { if (window.STEADY_DEBUG) console.warn('SW register failed:', err); });
     }
 
