@@ -5,8 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#ffffff">
 <title>STEADY DOJO QUEST — タイム感主軸ドラム道場</title>
-<!-- PWA manifest（インライン JSON） -->
-<link rel="manifest" href="data:application/json;charset=utf-8,%7B%22name%22%3A%22STEADY%22%2C%22short_name%22%3A%22STEADY%22%2C%22description%22%3A%22%E3%83%89%E3%83%A9%E3%83%A0%E7%B7%B4%E7%BF%92%E3%83%84%E3%83%BC%E3%83%AB%22%2C%22start_url%22%3A%22.%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23ffffff%22%2C%22theme_color%22%3A%22%23ffffff%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fpng%3Bbase64%2CiVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk%2BA8AAQUBAScY42YAAAAASUVORK5CYII%3D%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fpng%22%2C%22purpose%22%3A%22any%22%7D%5D%7D">
+<!-- PWA manifest（インライン JSON・hotfix1.3 Q-11：accent #4527a0 + 192/512 PNG icon） -->
+<link rel="manifest" href="data:application/json;charset=utf-8,%7B%22name%22%3A%20%22STEADY%22%2C%20%22short_name%22%3A%20%22STEADY%22%2C%20%22description%22%3A%20%22%E3%83%89%E3%83%A9%E3%83%A0%E7%B7%B4%E7%BF%92%E3%83%84%E3%83%BC%E3%83%AB%22%2C%20%22start_url%22%3A%20%22.%2F%22%2C%20%22display%22%3A%20%22standalone%22%2C%20%22background_color%22%3A%20%22%234527a0%22%2C%20%22theme_color%22%3A%20%22%234527a0%22%2C%20%22icons%22%3A%20%5B%7B%22src%22%3A%20%22vendor%2Ficon-192.png%22%2C%20%22sizes%22%3A%20%22192x192%22%2C%20%22type%22%3A%20%22image%2Fpng%22%2C%20%22purpose%22%3A%20%22any%22%7D%2C%20%7B%22src%22%3A%20%22vendor%2Ficon-512.png%22%2C%20%22sizes%22%3A%20%22512x512%22%2C%20%22type%22%3A%20%22image%2Fpng%22%2C%20%22purpose%22%3A%20%22any%22%7D%5D%7D">
+<!-- hotfix1.3 Q-11：iOS A2HS 用 apple-touch-icon + 通常 favicon -->
+<link rel="apple-touch-icon" sizes="192x192" href="vendor/icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="vendor/icon-192.png">
 <!-- ローカル vendor（CDN落ち耐性） -->
 <script src="vendor/tone.js"></script>
 <script src="vendor/chart.js"></script>
@@ -55,7 +58,7 @@
    - 妖怪SVG：accent単色シルエット 60x60
    ============================================================ */
 :root {
-  --accent: #7c6af7;
+  --accent: #4527a0; /* hotfix1.3 Q-3：white text on accent = 10.2396 AAA 両 mode（AL011 一次再現 2026-05-09・旧 #7c6af7 light 3.99 FAIL → 単一値 AAA に統合） */
   --text: #1a1a1a;
   --bg: #ffffff;
   --surface: #f8f9fb;
@@ -63,12 +66,10 @@
   --muted: #6b7280;
   --danger: #dc2626; /* 機能カラー：破壊的操作（全データ削除・STOP）専用。視覚言語2色宣言の例外。 */
   /* v3.3.0r4-hotfix1 C：RMS リアルタイム表示の 3 色（threshold 比較で red/yellow/green）
-     v3.3.0r4-hotfix1.2 Q3：AL011 二次検証反映（CEO hallucination 誤記訂正）
-     v3.3.0r4-hotfix1.2 final：AL011 三次再計算で実測値に再訂正（CEO hallucination 第二弾検出・hotfix1.3 候補確定）
-     - 全数値は AL011 sRGB→linear→相対輝度→比 一次計算結果（CEO 申告値ではなく監査実測） */
-  --bad:  #dc3545; /* light on white 4.34:1 FAIL / dark on #0F0F12 4.38:1 FAIL（hotfix1.3 で再選定要） */
-  --warn: #856404; /* light on white 5.49:1 PASS / dark on #0F0F12 3.46:1 FAIL（hotfix1.3 で dark override 要） */
-  --good: #1e7e34; /* light on white 5.08:1 PASS（dark は body.dark で #28a745 override） */
+     v3.3.0r4-hotfix1.3 Q-1/Q-2：AL011 一次再現値 5 色確定（light: #a71d2a 7.36 / dark override で 6.90/11.74/8.38 達成） */
+  --bad:  #a71d2a; /* light: 7.36 AAA / dark: NG → body.dark で #ff6b6b (6.90) override */
+  --warn: #856404; /* light on white 5.49 PASS / dark: NG → body.dark で #ffc107 (11.74) override */
+  --good: #1e7e34; /* light on white 5.08 PASS（dark は body.dark で #28a745 override） */
   --maxw: 720px;
 
   /* ============================================================
@@ -93,7 +94,7 @@
   --c-attr-dark:    #4A2C5A;
 }
 body.dark {
-  --accent: #8b7afa;
+  /* v3.3.0r4-hotfix1.3 Q-3：accent は light/dark 単一値で AAA。override 撤去で値の重複防止 */
   --text: #f3f4f6;
   --bg: #0f0f12;
   --surface: #1a1a22;
@@ -103,8 +104,11 @@ body.dark {
   --c-bg: #0F0F12;
   --c-fg: #F3F4F6;
   --c-muted: #9CA3AF;
-  /* v3.3.0r4-hotfix1.2 Q3：dark mode 用 RMS UI override（light で AA 通す値が dark で悪化するため別値） */
-  --good: #28a745; /* dark on #0F0F12 6.16:1 PASS（AL011 三次実測・light は #1e7e34 維持） */
+  /* v3.3.0r4-hotfix1.3 Q-2：RMS/Toast/danger の dark override（AL011 一次再現 2026-05-09） */
+  --bad:    #ff6b6b; /* dark on #0F0F12 = 6.8959 AA */
+  --warn:   #ffc107; /* dark on #0F0F12 = 11.7399 AAA */
+  --danger: #ff8a80; /* dark on #0F0F12 = 8.3828 AAA */
+  --good:   #28a745; /* dark on #0F0F12 6.16 PASS（AL011 三次実測・light は #1e7e34 維持） */
 }
 * { box-sizing: border-box; }
 html, body {
@@ -174,7 +178,7 @@ header {
 .metro-tap-pad {
   display: block; width: 100%; margin: 8px 0 0 0; padding: 14px 12px;
   font-size: 15px; font-weight: 600;
-  background: var(--accent, #7c6af7); color: #fff;
+  background: var(--accent, #4527a0); color: #fff;
   border: none; border-radius: 8px; cursor: pointer;
   transition: opacity 0.15s, transform 0.05s;
   -webkit-tap-highlight-color: transparent; touch-action: manipulation;
@@ -188,7 +192,7 @@ header {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 88px; padding: 10px 16px; margin-left: 8px;
   font-size: 0.95rem; font-weight: 700; letter-spacing: 0.04em;
-  background: var(--accent, #7c6af7); color: #fff;
+  background: var(--accent, #4527a0); color: #fff;
   border: none; border-radius: 8px; cursor: pointer;
   -webkit-tap-highlight-color: transparent; touch-action: manipulation;
   transition: opacity 0.15s, transform 0.05s;
@@ -408,7 +412,8 @@ textarea { width: 100%; min-height: 60px; resize: vertical; }
 .metric-cell .l { color: var(--muted); font-size: 0.82rem; margin-top: 4px; }
 
 .toast {
-  position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+  /* hotfix1.3 Q-10：iPhone Safari 下タブ＋ホームバー域回避（80px tab + safe-area + 16px gap） */
+  position: fixed; bottom: calc(80px + env(safe-area-inset-bottom, 0px) + 16px); left: 50%; transform: translateX(-50%);
   background: var(--text); color: var(--bg);
   padding: 12px 20px; border-radius: 8px;
   opacity: 0; pointer-events: none; transition: opacity 0.2s;
@@ -576,7 +581,11 @@ textarea { width: 100%; min-height: 60px; resize: vertical; }
   background: var(--bg); color: var(--text);
   border: 2px solid var(--accent); border-radius: 14px;
   max-width: 440px; width: 100%; padding: 22px;
-  max-height: 88vh; overflow-y: auto;
+  /* hotfix1.3 Q-12：iOS Safari URL バー出現時の下端見切れ回避（dvh 優先・88vh フォールバック） */
+  max-height: calc(100dvh - 100px); overflow-y: auto;
+}
+@supports not (height: 100dvh) {
+  .tutorial-card { max-height: 88vh; }
 }
 .tutorial-step-num {
   display: inline-block; background: var(--accent); color: #fff;
@@ -760,7 +769,11 @@ textarea { width: 100%; min-height: 60px; resize: vertical; }
   background: var(--bg); color: var(--text);
   border: 2px solid var(--accent); border-radius: 12px;
   max-width: 420px; width: 100%; padding: 20px;
-  max-height: 88vh; overflow-y: auto;
+  /* hotfix1.3 Q-12：iOS Safari URL バー出現時の下端見切れ回避（dvh 優先・88vh フォールバック） */
+  max-height: calc(100dvh - 100px); overflow-y: auto;
+}
+@supports not (height: 100dvh) {
+  .hud-modal-card { max-height: 88vh; }
 }
 .hud-modal-title { font-size: 1.1rem; font-weight: 700; margin: 0 0 12px; }
 .hud-modal-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 0.92rem; }
@@ -1819,7 +1832,14 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
   // ----------------------------------------------------------
   const $ = (id) => document.getElementById(id);
   const lsGet = (k, fb) => { try { const v = localStorage.getItem(k); return v == null ? fb : JSON.parse(v); } catch(_){ return fb; } };
-  const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch(_){ return false; } };
+  // hotfix1.3 Q-9：QuotaExceeded 時にユーザー認知 toast を発火（無音 false 返却で消失する事故を救う）
+  const lsSet = (k, v) => {
+    try { localStorage.setItem(k, JSON.stringify(v)); return true; }
+    catch(e) {
+      try { if (typeof showToast === 'function') showToast('保存容量不足。古い記録を削除してください', 5000); } catch(_){}
+      return false;
+    }
+  };
   const todayStr = () => { const d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
 
   // 共通初期化ヘルパ（型保証・null/プロトタイプ汚染回避）
@@ -2378,7 +2398,7 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
     else if (dates.length > 0) {
       _gameChart = new Chart(cv.getContext('2d'), {
         type: 'bar',
-        data: { labels: dates, datasets: [{ label: '実施回数', data: counts, backgroundColor: getComputedStyle(document.body).getPropertyValue('--accent') || '#7c6af7' }] },
+        data: { labels: dates, datasets: [{ label: '実施回数', data: counts, backgroundColor: getComputedStyle(document.body).getPropertyValue('--accent') || '#4527a0' }] },
         options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }, plugins: { legend: { display: false } } }
       });
     }
@@ -2710,7 +2730,11 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
   let _sigSeqStepIdx = 0;         // sequence 配列のインデックス
   let _sigSeqStepBarCnt = 0;      // 現 step 内で消化した bar 数
   // v3.3.0r3r1 M-1/M-2/T-3/T-4/T-6：メトロ単独 mic / 連符 sub-pulse / 期待時刻配列
-  let _metroMicAttached = false;       // M-1：メトロ起動時に micStart 成功したか
+  let _metroMicAttached = false;       // M-1：メトロ起動時に micStart 成功したか（権限取得のみを表す）
+  // hotfix1.3 Q-7：mic onset が実際に来たかを表す独立 flag（attached だが silent な状況を救う）
+  let _metroMicWorking = false;
+  // hotfix1.3 Q-8：countIn 中の onset を捨てるためのガードフラグ（正規 beat 開始までは false 扱い）
+  let _metroCountInDone = true;
   // v3.3.0r3r2 C：単純連符 / 複合連符を別 voice 化（EMP-3 補完項目）
   // _simpleSubClickSynth：単純連符（duplet〜septuplet）用 — ピンクノイズ + 高域 BPF（既存 v3.3.0r3r1 互換）
   // _compoundSubClickSynth：複合連符（2 拍 3 連 / 3 拍 4 連 / 4 拍 5 連）用 — 別音色（square + 中域 BPF）
@@ -2970,6 +2994,10 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
   // M-2：mic onset → driftPush 接続関数（mic 経路 / tap 経路 共通）
   function onMetroOnset(onsetMs) {
     if (!_metroRunning) return;
+    // hotfix1.3 Q-8：countIn 中の onset は driftViz に紐付けず破棄
+    if (!_metroCountInDone) return;
+    // hotfix1.3 Q-7：mic onset が来た瞬間に working=true（silent failure 判定の真値）
+    _metroMicWorking = true;
     const expected = _resolveExpectedTickMs(onsetMs);
     if (expected == null) return;
     const driftMs = onsetMs - expected;
@@ -3182,6 +3210,23 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
       return;
     }
     if (_metroRunning) { metroStop(); return; }
+    // v3.3.0r4-hotfix1.3 Q-6：旧 wrapper（L5198-5220）の 7 ステップを統合
+    //   B1 AudioContext 復帰（iOS Safari suspended → resume）
+    const _audioOk = await ensureAudioContext(() => { try { metroStop(); } catch(_){} showToast('オーディオ中断。再度タップで再開', 3000); });
+    if (!_audioOk) return;
+    // B2 silent switch 警告（iOS 1 回限り）
+    try { checkSilentSwitchWarn(); } catch(_){}
+    // 即興モード ON なら BPM をランダム揺らぎ（±8 BPM）
+    if (lsGet(LS.SOKKYOU, false) === true) {
+      const _baseBpm = parseInt($('metroBpmInput').value, 10) || 100;
+      const _jit = Math.floor(Math.random() * 17) - 8;
+      metroSetBpm(Math.max(40, Math.min(240, _baseBpm + _jit)));
+    }
+    // シンセを音色設定で生成（Tone.MembraneSynth → buildClickSynth 差し替え：旧 wrapper 主目的）
+    if (typeof Tone !== 'undefined' && _metroSynth) {
+      try { (_metroSynth.dispose ? _metroSynth.dispose() : null); } catch(_){}
+      _metroSynth = null;
+    }
     const btn = $('metroToggleBtn');
     if (btn) { btn.classList.add('is-loading'); btn.style.pointerEvents = 'none'; }
     try {
@@ -3451,6 +3496,10 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
       // v3.3.0r4-hotfix1 D-2：start 時刻を確定（3 秒 onset ゼロ判定の基準）
       _metroStartMs = performance.now();
       _micFallbackToastFired = false;
+      // hotfix1.3 Q-7：working flag を START 毎にリセット
+      _metroMicWorking = false;
+      // hotfix1.3 Q-8：countIn 中なら done=false で onset 破棄、countIn 無しなら即 done=true
+      _metroCountInDone = !countIn;
       if (countIn) {
         // v3.3.0r3 hotfix complement（B-3）：countIn を AudioContext.currentTime ベースに統一。
         // setTimeout の累積誤差ではなく Web Audio 時刻軸で 4 拍を予約し、Transport も
@@ -3467,7 +3516,17 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
         if (typeof beatRepeatId === 'number') _scheduleIds.push(beatRepeatId);
         _scheduleCompoundTuplets();
         _schedulePolyrhythms();
-        Tone.Transport.start(transportStartAt);
+        // hotfix1.3 Q-5：Tone.Transport.start を try/catch で保護（iOS Safari ロック復帰直後の suspend 競合）
+        try {
+          Tone.Transport.start(transportStartAt);
+        } catch(e) {
+          try { metroStop(); } catch(_){}
+          if (btn) { btn.classList.remove('is-loading'); btn.style.pointerEvents = ''; }
+          try { showToast('オーディオ起動失敗。再度タップしてください', 3500); } catch(_){}
+          return;
+        }
+        // hotfix1.3 Q-8：countIn 4 拍経過後に done=true（performance.now ベースで近似・spb*4 秒後）
+        setTimeout(() => { _metroCountInDone = true; }, Math.ceil(spb * 4 * 1000));
         // v3.3.0r4-hotfix1 D-3：start 直後の数百 ms タップが空 buf で捨てられる窓を消す
         // C2 補完（AL012 文章監査）：原典 AL011 §6(d) 通り performance.now() のみ（+50ms オフセット撤回）
         try { _expectedTickPush(performance.now(), 'beat'); } catch(_){}
@@ -3478,23 +3537,29 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
         if (typeof beatRepeatId === 'number') _scheduleIds.push(beatRepeatId);
         _scheduleCompoundTuplets();
         _schedulePolyrhythms();
-        Tone.Transport.start();
+        // hotfix1.3 Q-5：Tone.Transport.start を try/catch で保護（iOS Safari ロック復帰直後の suspend 競合）
+        try {
+          Tone.Transport.start();
+        } catch(e) {
+          try { metroStop(); } catch(_){}
+          if (btn) { btn.classList.remove('is-loading'); btn.style.pointerEvents = ''; }
+          try { showToast('オーディオ起動失敗。再度タップしてください', 3500); } catch(_){}
+          return;
+        }
         // v3.3.0r4-hotfix1 D-3：start 直後の buf 空窓を埋める（countIn なし経路）
         try { _expectedTickPush(performance.now(), 'beat'); } catch(_){}
       }
       _metroRunning = true;
-      // v3.3.0r4-hotfix1 D-2：3 秒以内に onset 1 回も来なければ tap fallback を toast で促す
-      // _metroMicAttached が true（micStart 成功）でも実際に onset 出てない silent failure を救う
-      // fired フラグ＋_metroRunning 内チェックで二重保険・stop 後誤発火防止
-      if (_metroMicAttached) {
-        _micWorkingCheckTid = setTimeout(() => {
-          if (_metroRunning && !_micFallbackToastFired && _lastOnsetMs < _metroStartMs) {
-            _micFallbackToastFired = true;
-            try { showToast('マイク感度低。タップで代用してください', 3500); } catch(_){}
-            // pad は B で常時表示済のため追加表示処理不要
-          }
-        }, 3000);
-      }
+      // hotfix1.3 Q-4：silent failure 第 5 経路修正・3 秒タイマーから _metroMicAttached ガードを除去
+      //   mic 拒否（_metroMicAttached=false）時も常時起動。working=false なら toast 強制発火で tap fallback を促す
+      // hotfix1.3 Q-7：判定条件を !_metroMicWorking に変更（attach=true でも onset ゼロなら救う）
+      _micWorkingCheckTid = setTimeout(() => {
+        if (_metroRunning && !_micFallbackToastFired && !_metroMicWorking) {
+          _micFallbackToastFired = true;
+          try { showToast('マイク感度低。タップで代用してください', 3500); } catch(_){}
+          // pad は B で常時表示済のため追加表示処理不要
+        }
+      }, 3000);
       if (btn) btn.textContent = 'STOP';
     } finally {
       if (btn) { btn.classList.remove('is-loading'); btn.style.pointerEvents = ''; }
@@ -3514,6 +3579,9 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
     _metroRunning = false;
     _bpmLockedDuringPlay = false;
     _setBpmInputsDisabled(false);
+    // hotfix1.3 Q-7/Q-8：stop 時に flag リセット（次回 START でクリーンな状態から判定）
+    _metroMicWorking = false;
+    _metroCountInDone = true;
     if (typeof Tone !== 'undefined') {
       // v3.3.0r3r2 D-2：個別予約 ID を Tone.Transport.clear(id) で解放してから cancel(0) で全消去
       // 高速 START→STOP→START の予約漏れ対策（cancel(0) は redundancy として残す）
@@ -3782,7 +3850,7 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
         if (_b100ChartInst) _b100ChartInst.destroy();
         _b100ChartInst = new Chart(cv.getContext('2d'), {
           type: 'line',
-          data: { labels: series.map(s=>s.i+1), datasets: [{ label: '誤差 ms', data: series.map(s=>s.d), borderColor: '#7c6af7', tension: 0.1, pointRadius: 0 }] },
+          data: { labels: series.map(s=>s.i+1), datasets: [{ label: '誤差 ms', data: series.map(s=>s.d), borderColor: '#4527a0', tension: 0.1, pointRadius: 0 }] },
           options: { responsive: true, scales: { y: { title: { display: true, text: 'ms' } } } }
         });
       }
@@ -4411,7 +4479,7 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
     app_time: 'メトロ使用時間'
   };
   const SR_CATEGORY_COLOR = {
-    studio:       '#7c6af7',
+    studio:       '#4527a0',
     live:         '#f97316',
     home_kit:     '#10b981',
     practice_pad: '#0ea5e9',
@@ -4484,7 +4552,7 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
         datasets: [{
           label: '練習分（自己申告 + メトロ）',
           data: data,
-          borderColor: '#7c6af7',
+          borderColor: '#4527a0',
           backgroundColor: 'rgba(124,106,247,0.15)',
           fill: true,
           tension: 0.25,
@@ -5061,7 +5129,7 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
     if (typeof Chart === 'undefined') { if (sum) sum.textContent = 'Chart.js 未ロード'; return; }
     const ek = lsGet(LS.ENEMY_KPI, {}) || {};
     // 各妖怪の meanMs 推移を1本ずつ折れ線
-    const colors = ['#7c6af7','#dc2626','#16a34a','#0891b2','#ea580c'];
+    const colors = ['#4527a0','#dc2626','#16a34a','#0891b2','#ea580c'];
     const datasets = [];
     let totalCount = 0;
     ENEMIES.forEach((e, i) => {
@@ -5185,29 +5253,7 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
       dispose:()=>{ try{ noise.dispose(); bpf.dispose(); }catch(_){} } };
   }
 
-  // 既存 metroToggle の Tone.MembraneSynth 生成箇所を差し替えるため、metroToggle をラップ
-  const _origMetroToggle = metroToggle;
-  metroToggle = async function() {
-    if (_metroRunning) { metroStop(); return; }
-    // B1 AudioContext 復帰（iOS Safari suspended → resume）
-    const ok = await ensureAudioContext(() => { try { metroStop(); } catch(_){} showToast('オーディオ中断。再度タップで再開', 3000); });
-    if (!ok) return;
-    // B2 silent switch 警告（iOS 1回限り）
-    checkSilentSwitchWarn();
-    // 即興モード ON なら BPM をランダム揺らぎ
-    if (lsGet(LS.SOKKYOU, false) === true) {
-      const base = parseInt($('metroBpmInput').value, 10) || 100;
-      const jitter = Math.floor(Math.random() * 17) - 8; // ±8 BPM
-      metroSetBpm(Math.max(40, Math.min(240, base + jitter)));
-    }
-    // シンセを音色設定で生成
-    if (typeof Tone !== 'undefined' && _metroSynth) {
-      try { (_metroSynth.dispose ? _metroSynth.dispose() : null); } catch(_){}
-      _metroSynth = null;
-    }
-    if (!_metroSynth) _metroSynth = buildClickSynth();
-    return _origMetroToggle();
-  };
+  // v3.3.0r4-hotfix1.3 Q-6：旧 metroToggle wrapper を削除済み（main metroToggle 先頭部に統合）
 
   // ----------------------------------------------------------
   // v3.1 チュートリアル：イベント結線（boot 内 bindEvents の追記）
@@ -5818,10 +5864,10 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
       $('setCalibStatus').textContent = '較正済み：オフセット ' + off.offsetMs.toFixed(1) + ' ms';
     }
 
-    // SW 登録（v3.3.0r4-hotfix1：精度判定 root cause hotfix・閾値 0.020 / pad 常時表示 / RMS UI / silent failure ガード）
-    window.__version = 'v3.3.0r4-hotfix1';
+    // SW 登録（v3.3.0r4-hotfix1.3：AA 完全準拠版・WCAG AAA 5 色 + silent failure 第 5/6 経路除去 + dvh + PWA icon）
+    window.__version = 'v3.3.0r4-hotfix1.3';
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./steady-sw.js?v=3.3.0r4-hotfix1', { scope: './' })
+      navigator.serviceWorker.register('./steady-sw.js?v=3.3.0r4-hotfix1.3', { scope: './' })
         .catch(err => { if (window.STEADY_DEBUG) console.warn('SW register failed:', err); });
     }
 
