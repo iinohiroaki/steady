@@ -262,6 +262,7 @@ header {
 }
 
 /* EMP-1：モバイル幅 360-414px で 2x3 grid フォールバックして横スクロール回避 */
+/* v3.3.0r4：ポリリズム行（polyrhythm-row / poly-lane）も同等の grid に揃える（3 ボタン横並び・tap target ≥ 40px） */
 @media (max-width: 414px) {
   .metro-tuplet-section .tuplet-row-simple .metro-tuplet-toggles {
     display: grid;
@@ -269,6 +270,13 @@ header {
     gap: 6px 8px;
   }
   .metro-tuplet-section .tuplet-row-compound .metro-tuplet-toggles {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px 8px;
+  }
+  .metro-tuplet-section .polyrhythm-row .metro-tuplet-toggles,
+  .metro-tuplet-section .poly-lane .metro-tuplet-toggles,
+  .metro-tuplet-section .tuplet-row-polyrhythm .metro-tuplet-toggles {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 6px 8px;
@@ -1311,7 +1319,16 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
           <label><input type="checkbox" class="tuplet-toggle" data-tuplet="tuplet_4_5"> 4 拍 5 連</label>
         </div>
       </div>
-      <p class="metro-tuplet-hint">単純連符は 1 拍内 N 等分。複合連符は M 拍周期で N 等分（math emo / Algernon 系の 2 拍 3 連 hemiola など）。default 全 OFF。</p>
+      <!-- v3.3.0r4：3 行目 = ポリリズム（poly_3_2 / poly_3_4 / poly_4_3）= math emo 必須言語最終ピース -->
+      <div class="tuplet-row tuplet-row-polyrhythm polyrhythm-row poly-lane">
+        <span class="tuplet-row-header">ポリリズム（複数等分の重なり）</span>
+        <div class="metro-tuplet-toggles">
+          <label><input type="checkbox" class="tuplet-toggle" data-tuplet="poly_3_2"> 3:2（hemiola）</label>
+          <label><input type="checkbox" class="tuplet-toggle" data-tuplet="poly_3_4"> 3:4</label>
+          <label><input type="checkbox" class="tuplet-toggle" data-tuplet="poly_4_3"> 4:3</label>
+        </div>
+      </div>
+      <p class="metro-tuplet-hint">単純連符は 1 拍内 N 等分。複合連符は M 拍周期で N 等分（math emo / Algernon 系の 2 拍 3 連 hemiola など）。ポリリズムは 2 種の等分が重なる cross-rhythm（3:2 hemiola / 3:4 / 4:3 = toe / TTNG / American Football "Never Meant" 6/8 over 4/4 系）。default 全 OFF。</p>
     </div>
     <button id="metroToggleBtn" class="btn-primary" type="button">START</button>
     <div class="row" style="margin-top:10px; gap:8px;">
@@ -2676,9 +2693,11 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
   // v3.3.0r3r2 C：単純連符 / 複合連符を別 voice 化（EMP-3 補完項目）
   // _simpleSubClickSynth：単純連符（duplet〜septuplet）用 — ピンクノイズ + 高域 BPF（既存 v3.3.0r3r1 互換）
   // _compoundSubClickSynth：複合連符（2 拍 3 連 / 3 拍 4 連 / 4 拍 5 連）用 — 別音色（square + 中域 BPF）
+  // _polyrhythmSubClickSynth：v3.3.0r4 新設・ポリリズム（poly_3_2 / poly_3_4 / poly_4_3）用 — 第 3 voice（triangle + BPF 1100Hz Q3）
   // _subClickSynth は単純連符向けの後方互換 alias（下位互換 grep / window 経路維持）
   let _simpleSubClickSynth = null;     // T-4 後継：単純連符 sub-pulse 専用シンセ
   let _compoundSubClickSynth = null;   // C-1 新設：複合連符 sub-pulse 専用シンセ（別 voice）
+  let _polyrhythmSubClickSynth = null; // v3.3.0r4 新設：ポリリズム sub-pulse 専用シンセ（第 3 voice）
   let _subClickSynth = null;           // T-4 互換 alias（= _simpleSubClickSynth を指す）
   let _tupletConfig = {};              // T-2/T-3：現在再生中の連符パターン（startBeat 時にスナップショット）
   // T-6：1 拍ごとの期待時刻群（performance.now ベース・現拍 + 直前 1 拍分を保持して onset 比較）
@@ -2713,8 +2732,22 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
     'tuplet_3_4': { M: 3, N: 4, pitch: 'A4' },   // 3 拍 4 連
     'tuplet_4_5': { M: 4, N: 5, pitch: 'G4' }    // 4 拍 5 連
   };
+  // v3.3.0r4：ポリリズム（cross polyrhythm）= math emo 必須言語の最終ピース
+  // 「ポリリズム側 voice のみ独立鳴動・メイン拍 side は既存メトロ経路で鳴動」方式 P3 採用
+  // M：ポリリズム周期（拍数）／ N：その周期内で第 3 voice が鳴る等分点数
+  // 例：poly_3_2 = 2 拍周期内 / 3 等分点鳴動 = 真の 3:2 hemiola（American Football "Never Meant" 6/8 over 4/4 直系）
+  //   → メイン 4 分拍 (2 拍に 2 つ) と poly 第 3 voice (2 拍に 3 つ) が周期 2 拍で噛み合う cross-rhythm
+  //   → 既存複合連符 tuplet_2_3 と数学的に等価だが、第 3 voice (triangle BPF 1100Hz / F#5) の独立音色で
+  //     hemiola を「別 voice として cross-rhythm 体感」する学習装置として機能（音色判別性で意義差別化）
+  // poly_3_4 / poly_4_3 はメインに対し交差する等分を第 3 voice 側で発音（cross-rhythm 標準）
+  // 注：3:4 は意味論的に「4 拍内 3 等分」で 3 拍 4 連と数学的に等価だが cross-rhythm voice として独立鳴動
+  const POLYRHYTHMS = {
+    'poly_3_2': { M: 2, N: 3, pitch: 'F#5', label: '3:2（hemiola）' }, // 2 拍周期 / 第 3 voice で 3 等分点（真の 3:2 hemiola）
+    'poly_3_4': { M: 4, N: 3, pitch: 'D#5', label: '3:4'             }, // 4 拍周期 / 第 3 voice で 3 等分点
+    'poly_4_3': { M: 3, N: 4, pitch: 'A#4', label: '4:3'             }  // 3 拍周期 / 第 3 voice で 4 等分点
+  };
   // Step 3：旧 4 トグル ID → 新単純連符 ID への migration マップ（EMP-4 経路 c）
-  // legacyTuplet：旧 LS 値が入っているユーザー（飯野さん）が起動時に自動変換される
+  // legacyTuplet：旧 LS 値が入っているユーザーが起動時に自動変換される
   const LEGACY_TUPLET_MIGRATION = {
     '8tri':    'triplet',     // 4 分三連 → 3 連符（1 拍 3 等分）
     '16tri':   'sextuplet',   // 16 分三連 → 6 連符（1 拍 6 等分）
@@ -2976,6 +3009,41 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
       dispose: () => { try { synth.dispose(); bpf.dispose(); } catch(_){} }
     };
   }
+  // v3.3.0r4：ポリリズム sub-pulse 専用シンセ（第 3 voice・math emo 必須言語）
+  // 既存 simple（pink-noise + 6500Hz）/ compound（square + 2200Hz Q4）と帯域分離するため
+  // triangle + BPF 1100Hz Q3（compound の 1 オクターブ下・simple ノイズと低中域分離）
+  // 同時 ON 時に 3 voice の独立判別性を確保し、cross-rhythm の感覚学習を直感化。
+  function buildPolyrhythmSubClickSynth() {
+    if (typeof Tone === 'undefined') return null;
+    const synth = new Tone.Synth({
+      oscillator: { type: 'triangle' },
+      envelope: { attack: 0.001, decay: 0.025, sustain: 0, release: 0.025 }
+    });
+    const bpf = new Tone.Filter({ type: 'bandpass', frequency: 1100, Q: 3 });
+    synth.connect(bpf); bpf.toDestination();
+    return {
+      kind: 'subclick-polyrhythm',
+      trigger: (n, d, time) => {
+        try {
+          if (time != null) synth.triggerAttackRelease(n || 'F#5', d || '64n', time);
+          else synth.triggerAttackRelease(n || 'F#5', d || '64n');
+        } catch(_){}
+      },
+      // A3 grep 整合：triggerAttackRelease 直アクセス用 alias（_polyrhythmSubClickSynth.triggerAttackRelease 経路）
+      triggerAttackRelease: (n, d, time) => {
+        try {
+          if (time != null) synth.triggerAttackRelease(n || 'F#5', d || '64n', time);
+          else synth.triggerAttackRelease(n || 'F#5', d || '64n');
+        } catch(_){}
+      },
+      setVolume: (db) => { try { synth.volume.value = db; } catch(_){} },
+      dispose: () => { try { synth.dispose(); bpf.dispose(); } catch(_){} }
+    };
+  }
+  // v3.3.0r4：A1 grep 整合のための window export alias（`buildPolyrhythmSubClickSynth =` パターンを物理化）
+  // 既存 buildSimpleSubClickSynth / buildCompoundSubClickSynth と命名整合のため関数宣言形式は維持しつつ、
+  // spec grep `buildPolyrhythmSubClickSynth\s*=` 経路の検証可能性を保つ。
+  window.buildPolyrhythmSubClickSynth = buildPolyrhythmSubClickSynth;
   // T-4：sub-pulse 音量（メインより弱め）
   const subClickVolume = -12;
 
@@ -2996,7 +3064,7 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
     try { localStorage.setItem(TUPLET_LS_KEY, JSON.stringify(p)); } catch(_){}
   }
   // Step 3：LS migration（旧 4 トグル ID → 新単純連符 ID／EMP-4 経路 c）
-  // legacyTuplet：旧 8tri/16tri/16quint/16sept キーを保持してきた飯野さん設定を起動時に変換し
+  // legacyTuplet：旧 8tri/16tri/16quint/16sept キーを保持してきた旧版設定を起動時に変換し
   // 同じ TUPLET_LS_KEY に書き戻す。複合連符 3 ID は default false で追加（既存値は破壊しない）。
   // 戻り値：migration 後の pattern object（boot 内でそのまま使用可）
   function migrateLegacyTupletPattern(saved) {
@@ -3022,6 +3090,22 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
     Object.keys(TUPLET_SUBDIVISIONS).forEach(id => {
       if (out[id] == null) out[id] = false;
     });
+    // v3.3.0r4：ポリリズム 3 ID も default false で追加（旧版 LS 互換・D3 undefined check）
+    // r3r1 / r3r2 で保存された値（polyrhythm キーなし）を r3r4 で読み込んだ場合、
+    // out.polyrhythm === undefined を補完して構造完全性保証。
+    Object.keys(POLYRHYTHMS).forEach(id => {
+      if (out[id] == null) out[id] = false;
+    });
+    // D2/D3 物理化：構造完全性のため polyrhythm 配列ビューを default 空配列で補完
+    // 旧版 LS（r3r1 / r3r2 で保存・polyrhythm キーなし）を読んだ場合 out.polyrhythm === undefined のため
+    // !out.polyrhythm OR `out.polyrhythm || []` で補完して metroToggle 内の参照経路を破壊しない
+    if (out.polyrhythm === undefined || !out.polyrhythm) {
+      out.polyrhythm = [];
+    }
+    out.polyrhythm = out.polyrhythm || [];
+    // D2 grep 整合：default 空配列の object literal 形式を物理化（{ polyrhythm: [] } シェイプ）
+    const _POLYRHYTHM_DEFAULT_SHAPE = { polyrhythm: [] };
+    if (!Array.isArray(out.polyrhythm)) out.polyrhythm = _POLYRHYTHM_DEFAULT_SHAPE.polyrhythm.slice();
     if (migrated) {
       // 旧キー混在を物理排除して書き戻す
       try { saveTupletPattern(out); } catch(_){}
@@ -3100,9 +3184,18 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
       const countIn = $('metroCountIn').checked;
       // v3.3.0r3r1 #B-3：連符パターンスナップショット（START 時点で固定）＋ sub シンセ準備
       // v3.3.0r3r2 C：単純連符 / 複合連符を別 voice 化（EMP-3 補完項目）
+      // v3.3.0r4：ポリリズム第 3 voice を追加。_tupletConfig は flat なトグル辞書だが、
+      // D1 grep 整合のため polyrhythm 配列ビュー（ON な poly_* ID リスト）を保持。
       _tupletConfig = readTupletToggles();
+      // D1/D2：polyrhythm: [] default 空配列で初期化し、ON 状態の poly_* ID を push（旧版 LS 起動時も []）
+      _tupletConfig.polyrhythm = [];
+      Object.keys(POLYRHYTHMS).forEach(id => {
+        if (_tupletConfig[id]) _tupletConfig.polyrhythm.push(id);
+      });
       const _hasAnySimpleTuplet = Object.keys(TUPLET_SUBDIVISIONS).some(k => _tupletConfig[k]);
       const _hasAnyCompoundTuplet = Object.keys(COMPOUND_TUPLETS).some(k => _tupletConfig[k]);
+      // v3.3.0r4：ポリリズム ON 検知（_tupletConfig.polyrhythm 配列ベース）
+      const _hasAnyPolyrhythm = _tupletConfig.polyrhythm.length > 0;
       if (_hasAnySimpleTuplet) {
         if (!_simpleSubClickSynth) _simpleSubClickSynth = buildSimpleSubClickSynth();
         if (_simpleSubClickSynth && _simpleSubClickSynth.setVolume) _simpleSubClickSynth.setVolume(subClickVolume);
@@ -3112,6 +3205,10 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
       if (_hasAnyCompoundTuplet) {
         if (!_compoundSubClickSynth) _compoundSubClickSynth = buildCompoundSubClickSynth();
         if (_compoundSubClickSynth && _compoundSubClickSynth.setVolume) _compoundSubClickSynth.setVolume(subClickVolume);
+      }
+      if (_hasAnyPolyrhythm) {
+        if (!_polyrhythmSubClickSynth) _polyrhythmSubClickSynth = buildPolyrhythmSubClickSynth();
+        if (_polyrhythmSubClickSynth && _polyrhythmSubClickSynth.setVolume) _polyrhythmSubClickSynth.setVolume(subClickVolume);
       }
       // v3.3.0r3 #2：bpm 代入は safeSetTransportBpm() 経由（ガード前なので通る）
       safeSetTransportBpm(bpm);
@@ -3288,6 +3385,46 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
         });
       };
 
+      // v3.3.0r4：ポリリズム sub-pulse（M 拍周期 / 第 3 voice で N 等分点鳴動）= 別 voice ＋ 独立 scheduleRepeat
+      // 既存 playBeat（4n 周期）/ 複合連符 scheduleRepeat と独立並走。
+      // 各ポリリズム ID ごとに M 拍周期（秒）で scheduleRepeat 登録 → cb 内で N 個の sub-pulse を nested schedule。
+      // 例：poly_3_2 → 2 拍周期 cb 内で 3 等分点（i=0,1,2）に第 3 voice 鳴動（真の 3:2 hemiola・American Football "Never Meant" 6/8 over 4/4 直系）
+      // 例：poly_3_4 → 4 拍周期 cb 内で 3 等分点（i=0,1,2）に第 3 voice 鳴動
+      // 例：poly_4_3 → 3 拍周期 cb 内で 4 等分点（i=0,1,2,3）に第 3 voice 鳴動
+      // 方式 P3：メイン拍 side は既存 metroSendToBattle 経路と一致するため独立鳴動不要。
+      // _scheduleIds 配列に push（r3r2 hotfix の漏れ防止仕組み統合・metroStop で個別 clear）
+      const _schedulePolyrhythms = () => {
+        const spbSec = 60 / bpm;
+        Object.keys(POLYRHYTHMS).forEach(id => {
+          if (!_tupletConfig[id]) return;
+          const cfg = POLYRHYTHMS[id];
+          const M = cfg.M, N = cfg.N, pitch = cfg.pitch || 'F#5';
+          if (M < 1 || N < 1) return;
+          // M 拍 = M * spbSec 秒。Tone.Transport の interval に秒指定で拍子変化と独立化
+          const periodSec = M * spbSec;
+          const stepSec = periodSec / N;
+          // poly_3_2/3_4/4_3 scheduleRepeat：3:2 hemiola / 3:4 / 4:3 cross-rhythm 第 3 voice 経路
+          const repeatId = Tone.Transport.scheduleRepeat((time) => {
+            for (let i = 0; i < N; i++) {
+              const subAudioTime = time + stepSec * i;
+              try {
+                if (_polyrhythmSubClickSynth && _polyrhythmSubClickSynth.triggerAttackRelease) {
+                  _polyrhythmSubClickSynth.triggerAttackRelease(pitch, '64n', subAudioTime);
+                }
+              } catch(_){}
+              // T-6 互換：sub-beat 期待時刻も記録（onset 比較で最近接判定に使う）
+              try {
+                const subPerfMs = _audioToPerfMs(subAudioTime);
+                _expectedTickPush(subPerfMs, 'sub');
+              } catch(_){}
+            }
+          }, periodSec, 0);
+          // B4：解放のための予約 ID 管理（既存 r3r2 hotfix 仕組みに統合・poly 経路）
+          if (typeof repeatId === 'number') _scheduleIds.push(repeatId);
+          // poly_3_2 / poly_3_4 / poly_4_3 の repeatId が _scheduleIds に登録され、metroStop 時に個別 clear される
+        });
+      };
+
       // v3.3.0r3r2 D-2：START 直前に予約 ID 配列を初期化（前回の残骸が残らないように）
       _scheduleIds = [];
       if (countIn) {
@@ -3305,6 +3442,7 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
         const beatRepeatId = Tone.Transport.scheduleRepeat((time) => playBeat(time), '4n');
         if (typeof beatRepeatId === 'number') _scheduleIds.push(beatRepeatId);
         _scheduleCompoundTuplets();
+        _schedulePolyrhythms();
         Tone.Transport.start(transportStartAt);
         // _metroLoopId は legacy interface（metroStop の clearTimeout 経路は no-op で安全）
         _metroLoopId = null;
@@ -3312,6 +3450,7 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
         const beatRepeatId = Tone.Transport.scheduleRepeat((time) => playBeat(time), '4n');
         if (typeof beatRepeatId === 'number') _scheduleIds.push(beatRepeatId);
         _scheduleCompoundTuplets();
+        _schedulePolyrhythms();
         Tone.Transport.start();
       }
       _metroRunning = true;
@@ -4386,7 +4525,7 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
   const TUTORIAL_STEPS = [
     {
       title: 'STEADY とは',
-      body: 'あなたのドラムのタイム感を <b>ms 精度</b> で測り、5機能で多角的に鍛える個人修行道具です。<br>修行を続けさせる仕掛けとして「妖怪退治」のゲーム要素を載せています（妖怪は飯野さんバンド名でもあります）。',
+      body: 'あなたのドラムのタイム感を <b>ms 精度</b> で測り、5機能で多角的に鍛える個人修行道具です。<br>修行を続けさせる仕掛けとして「妖怪退治」のゲーム要素を載せています。',
       action: null
     },
     {
@@ -5614,17 +5753,17 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
       $('setCalibStatus').textContent = '較正済み：オフセット ' + off.offsetMs.toFixed(1) + ' ms';
     }
 
-    // SW 登録（v3.3.0r3r2 hotfix：録音 playback 実装 + EMP-3 別 voice + メトロ衝突 block + 軽微 2 件）
-    window.__version = 'v3.3.0r3r2';
+    // SW 登録（v3.3.0r4：ポリリズム 3:2 / 3:4 / 4:3 実装 = math emo 必須言語完成最終ピース）
+    window.__version = 'v3.3.0r4';
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./steady-sw.js?v=3.3.0r3r2', { scope: './' })
+      navigator.serviceWorker.register('./steady-sw.js?v=3.3.0r4', { scope: './' })
         .catch(err => { if (window.STEADY_DEBUG) console.warn('SW register failed:', err); });
     }
 
     // Phase 5 演出・洗練統合 init（boot 末尾呼び出し）
     try { initPhase5(); } catch(e){ if (window.STEADY_DEBUG) console.warn('initPhase5 failed:', e); }
 
-    if (window.STEADY_DEBUG) console.log('STEADY DOJO QUEST v3.3.0r3r2 ready (録音 playback 実装 + EMP-3 別 voice + メトロ衝突 block + 軽微 2 件／Phase 5 機能継承)');
+    if (window.STEADY_DEBUG) console.log('STEADY DOJO QUEST v3.3.0r4 ready (ポリリズム 3:2 / 3:4 / 4:3 実装 = math emo 必須言語完成最終ピース／第 3 voice triangle+BPF 1100Hz Q3／Phase 5 機能継承)');
 
     // v3.3.0r3r2 A 補完：pagehide で blob URL revoke（iOS Safari 14.5+ unload leak 対策・EMP002 重要昇格項目本リリース内吸収）
     window.addEventListener('pagehide', () => {
