@@ -26,8 +26,8 @@
 
 'use strict';
 
-// VERSION tag: 'v3.3.0r3r2'（v3.3.0r3r2 hotfix：録音 playback 実装 + EMP-3 別 voice + メトロ衝突 block + 軽微 2 件／AL007 / 2026-05-08）
-const VERSION = 'steady-v3.3.0r3r2';
+// VERSION tag: 'v3.3.0r4'（v3.3.0r4：ポリリズム 3:2 / 3:4 / 4:3 実装 = math emo 必須言語完成最終ピース／AL007 / 2026-05-08）
+const VERSION = 'steady-v3.3.0r4';
 const CACHE_STATIC = VERSION + '-static';
 const CACHE_RUNTIME = VERSION + '-runtime';
 
@@ -77,7 +77,7 @@ self.addEventListener('activate', (event) => {
     caches.keys()
       .then((keys) =>
         Promise.all(
-          // VERSION（= 'steady-v3.3.0r3r2'）で始まらない cache は全削除
+          // VERSION（= 'steady-v3.3.0r4'）で始まらない cache は全削除
           // → 旧 Blob URL SW 由来の 'steady-v3.3.0r3-p6' / 過去 block9 系 / Step 1 cache も自動回収
           keys.filter((k) => !k.startsWith(VERSION)).map((k) => caches.delete(k).catch(() => {}))
         )
