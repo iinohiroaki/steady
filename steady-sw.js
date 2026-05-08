@@ -26,8 +26,8 @@
 
 'use strict';
 
-// VERSION tag: 'block9-h5'（v3.3.0r3-p5：Phase 5 演出洗練統合・装備カード二層／damage popup／GACHA_TIMING／pity 可視化／レベルアップ batch／敵 HUD 金枠／HOME emo／METRO 波形／多階層 judgment＋ms／combo multiplier／hitstop+shake／streak loss aversion／polish 5 点・AL007 / 2026-05-08）
-const VERSION = 'steady-v3.3.0-block9-h5';
+// VERSION tag: 'v3.3.0r3r1-step1'（Step 1：SW 二重登録解消・Blob URL SW 削除・物理 steady-sw.js 一元化／AL007 / 2026-05-08）
+const VERSION = 'steady-v3.3.0r3r1-step1';
 const CACHE_STATIC = VERSION + '-static';
 const CACHE_RUNTIME = VERSION + '-runtime';
 
@@ -35,33 +35,19 @@ const CACHE_RUNTIME = VERSION + '-runtime';
 // production では false。SW デバッグ時のみ手動で true に切替
 const STEADY_DEBUG = false;
 
-// precache 対象（HTML 3つ＋shared 系＋vendor＋manifest＋icon）
-// v3.3.0r2：耳訓練機能廃止に伴い steady-ear-trainer.js / steady-ear.html を除外（D-2 受入条件）
+// precache 対象（v3.3.0r3r1 Step 1：steady.html 単独配信構成に再整合）
+// 旧 multi-HTML 構成（steady-core.html / steady-game.html / steady-emolab-* 等）は
+// 将来 multi-HTML に戻す時の資産として履歴コメント残置するが、現行 PRECACHE_URLS には含めない
+// （addAll 失敗による SW install 失敗 → cache 機能ゼロ化を防ぐため）
 const PRECACHE_URLS = [
   './',
-  './steady-core.html',
-  './steady-game.html',
-  './steady-shared.css',
-  './steady-shared.js',
-  './steady-game.js',
-  './steady-emolab-shared.js',
-  './steady-emolab-p1p4.js',
-  './steady-emolab-p5p8.js',
-  './steady-midi-loops.js',
-  './steady-use-log.js',
-  './steady-self-report.js',
-  './steady-recorder.js',
-  './steady-stagnation.js',
-  './steady-beat-wheel.js',
-  './manifest.webmanifest',
-  './steady-icon.svg',
-  './404.html',
+  './steady.html',
   './vendor/tone.js',
   './vendor/chart.js'
 ];
 
-// 旧 cache（v3.0/v3.1/旧 r2 試作）を一掃する prefix
-const OLD_CACHE_PREFIXES = ['steady-v3.0', 'steady-v3.1', 'steady-v3.2.0r2-block0', 'steady-v3.2.0r2-block1', 'steady-v3.2.0r2-block2', 'steady-v3.2.0r2-block3', 'steady-v3.2.0r2-block4', 'steady-v3.2.0r2-block5', 'steady-v3.2.0r2-block6', 'steady-v3.2.0r2-block7', 'steady-v3.2.0r2-block8-h1', 'steady-v3.2.0r2-block8-h2', 'steady-v3.2.0r2-block8-h3', 'steady-v3.2.0r2-block8-h4', 'steady-v3.2.0r2-block8-h5', 'steady-v3.2.0r2-block8-h6', 'steady-v3.3.0-block9-h1', 'steady-v3.3.0-block9-h2', 'steady-v3.3.0-block9-h3', 'steady-v3.3.0-block9-h4'];
+// v3.3.0r3r1 Step 1：activate 時に「VERSION で始まらない steady- cache」を全削除する方式に変更
+// （Blob URL SW 由来の `steady-v3.3.0r3-p6` 等も自動回収。OLD_CACHE_PREFIXES 列挙は不要）
 
 // -------------------------------------------------------------
 // install: 静的 precache
@@ -90,16 +76,9 @@ self.addEventListener('activate', (event) => {
     caches.keys()
       .then((keys) =>
         Promise.all(
-          keys.map((k) => {
-            // 当バージョン以外で steady- 始まり or OLD_CACHE_PREFIXES に該当するものを削除
-            const isCurrent = k === CACHE_STATIC || k === CACHE_RUNTIME;
-            if (isCurrent) return Promise.resolve();
-            const isOld =
-              OLD_CACHE_PREFIXES.some((p) => k.indexOf(p) === 0) ||
-              (k.indexOf('steady-') === 0 && k !== CACHE_STATIC && k !== CACHE_RUNTIME);
-            if (isOld) return caches.delete(k).catch(() => {});
-            return Promise.resolve();
-          })
+          // VERSION（= 'steady-v3.3.0r3r1-step1'）で始まらない cache は全削除
+          // → 旧 Blob URL SW 由来の 'steady-v3.3.0r3-p6' / 過去 block9 系も自動回収
+          keys.filter((k) => !k.startsWith(VERSION)).map((k) => caches.delete(k).catch(() => {}))
         )
       )
       .then(() => self.clients.claim())
@@ -157,14 +136,10 @@ function handleNavigation(req) {
     .catch(() =>
       caches.match(req).then((cached) => {
         if (cached) return cached;
-        // UX-12 fallback：404.html を返す（PWA shell 不在時の最終救済）
-        return caches.match('./404.html').then((notfound) => {
-          if (notfound) return notfound;
-          // 404.html すらない場合は core を返す（旧来 shell フォールバック）
-          return caches.match('./steady-core.html').then((shell) => {
-            return shell || new Response('<h1>STEADY: offline</h1>', {
-              headers: { 'Content-Type': 'text/html; charset=utf-8' }
-            });
+        // v3.3.0r3r1 Step 1：steady.html 単独配信構成に再整合（旧 ./404.html / ./steady-core.html フォールバックは PRECACHE_URLS 縮小により撤去）
+        return caches.match('./steady.html').then((shell) => {
+          return shell || new Response('<h1>STEADY: offline</h1>', {
+            headers: { 'Content-Type': 'text/html; charset=utf-8' }
           });
         });
       })
