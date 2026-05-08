@@ -173,7 +173,7 @@ header {
 .metro-tap-pad:active { opacity: 0.75; transform: scale(0.98); }
 .metro-tap-pad[hidden] { display: none; }
 
-/* v3.3.0r3r1-step2 A：Tap Tempo ボタン（メトロ画面内・既存 BPM 入力へ自動反映）
+/* v3.3.0r3r1 A：Tap Tempo ボタン（メトロ画面内・既存 BPM 入力へ自動反映 ／ Step 2 導入・Step 3 継承）
    AL001 v2 仕様：rolling window 4-8 + median filter + 1.5s reset + 30-300 BPM フィルタ + iOS pointerdown */
 .metro-tap-tempo {
   display: inline-flex; align-items: center; justify-content: center;
@@ -187,7 +187,7 @@ header {
 .metro-tap-tempo:active { opacity: 0.78; transform: scale(0.96); }
 .metro-tap-tempo .tap-hint { font-size: 0.72rem; opacity: 0.85; margin-left: 6px; font-weight: 500; }
 
-/* v3.3.0r3r1-step2 B：HOME 録音大ボタン（直径 76px 採用・Apple HIG / iOS Voice Memo 準拠）
+/* v3.3.0r3r1 B：HOME 録音大ボタン（直径 76px 採用・Apple HIG / iOS Voice Memo 準拠 ／ Step 2 導入・Step 3 継承）
    採用直径 76px（仕様レンジ 64-80px の中間・親指タップ域 44pt 超 + 重要度高さ表現） */
 .home-record-card { text-align: center; }
 .record-button {
@@ -217,7 +217,7 @@ header {
   letter-spacing: 0.06em; min-height: 1.4em;
 }
 
-/* v3.3.0r3r1 #B-1：連符モード UI */
+/* v3.3.0r3r1 Step 3：連符モード UI（2 行レーン：単純連符 6 / 複合連符 3） */
 .metro-tuplet-section {
   margin: 10px 0 12px; padding: 10px 12px;
   background: rgba(124,106,247,0.05);
@@ -227,15 +227,46 @@ header {
   display: block; font-weight: 600; font-size: 0.9rem;
   color: var(--text, #333); margin-bottom: 6px;
 }
+.metro-tuplet-section .tuplet-row {
+  display: flex; flex-direction: column; gap: 4px;
+  margin-top: 6px; padding-top: 6px;
+}
+.metro-tuplet-section .tuplet-row + .tuplet-row {
+  border-top: 1px dashed var(--border, #e5e5e5);
+}
+.metro-tuplet-section .tuplet-row-header {
+  font-size: 0.74rem; font-weight: 600;
+  color: var(--muted, #888); letter-spacing: 0.02em;
+}
 .metro-tuplet-section .metro-tuplet-toggles {
-  display: flex; flex-wrap: wrap; gap: 12px 16px; margin-top: 4px;
+  display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 2px;
 }
 .metro-tuplet-section .metro-tuplet-toggles label {
   display: inline-flex; align-items: center; gap: 4px;
   font-size: 0.85rem; cursor: pointer;
+  min-height: 40px; /* EMP-1：tap target ≥ 40px（モバイル 360-414px 対応） */
+  padding: 4px 6px;
 }
 .metro-tuplet-section .metro-tuplet-hint {
-  margin: 6px 0 0; font-size: 0.72rem; color: var(--muted, #888);
+  margin: 8px 0 0; font-size: 0.72rem; color: var(--muted, #888);
+}
+
+/* EMP-1：モバイル幅 360-414px で 2x3 grid フォールバックして横スクロール回避 */
+@media (max-width: 414px) {
+  .metro-tuplet-section .tuplet-row-simple .metro-tuplet-toggles {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px 8px;
+  }
+  .metro-tuplet-section .tuplet-row-compound .metro-tuplet-toggles {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px 8px;
+  }
+  .metro-tuplet-section .metro-tuplet-toggles label {
+    font-size: 0.78rem;
+    min-height: 40px;
+  }
 }
 
 main {
@@ -373,6 +404,12 @@ textarea { width: 100%; min-height: 60px; resize: vertical; }
   background: var(--border); transition: background 0.05s;
 }
 .beat-dot.on { background: var(--accent); }
+/* Step 3：accent preset 強拍ドット（5/4=3+2 / 7/8=2+2+3 / 9/8=3+3+3 を視覚化） */
+.beat-dot.accent {
+  width: 18px; height: 18px;
+  border: 2px solid var(--accent);
+  background: rgba(124, 106, 247, 0.15);
+}
 
 .training-card {
   cursor: pointer; transition: border-color 0.15s, transform 0.05s;
@@ -1185,7 +1222,7 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
     <div class="muted-text small" id="homeIkkiRecord" style="margin-top:6px;"></div>
   </div>
 
-  <!-- v3.3.0r3r1-step2 B：HOME 録音大ボタン（home-emo セクション下部中央・既存 micStart / micStop 流用・配線追加のみ） -->
+  <!-- v3.3.0r3r1 B：HOME 録音大ボタン（home-emo セクション下部中央・既存 micStart / micStop 流用・配線追加のみ ／ Step 2 導入・Step 3 継承） -->
   <div class="card-secondary home-record-card home-emo-record" data-record-zone data-home-emo-record>
     <div class="card-meta">叩いて記録</div>
     <div class="muted-text small">スマホ／PC のマイクで素振りを録る。押すと開始、もう一度押すと停止。</div>
@@ -1210,7 +1247,7 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
     <div class="row" style="margin-bottom:12px;">
       <input type="range" id="metroBpmSlider" min="40" max="240" value="100" class="grow">
       <input type="number" id="metroBpmInput" min="40" max="240" value="100">
-      <!-- v3.3.0r3r1-step2 A：Tap Tempo（rolling 4-8 + median + 1.5s reset + 30-300 BPM フィルタ + iOS pointerdown） -->
+      <!-- v3.3.0r3r1 A：Tap Tempo（rolling 4-8 + median + 1.5s reset + 30-300 BPM フィルタ + iOS pointerdown ／ Step 2 導入・Step 3 継承） -->
       <button id="metroTapTempoBtn" class="metro-tap-tempo" type="button"
               data-tap-tempo aria-label="Tap Tempo">TAP<span class="tap-hint" id="metroTapTempoHint">×0</span></button>
     </div>
@@ -1220,6 +1257,9 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
         <option value="4">4/4</option>
         <option value="3">3/4</option>
         <option value="6">6/8</option>
+        <option value="5/4">5/4</option>
+        <option value="7/8">7/8</option>
+        <option value="9/8">9/8</option>
       </select>
       <label class="field" for="metroVol" style="margin-left:12px;">音量</label>
       <input type="range" id="metroVol" min="0" max="100" value="90" style="width:120px;">
@@ -1235,16 +1275,31 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
       </label>
       <div class="muted-text small" id="metroSigSequenceHint" style="flex:1 1 100%;">空欄なら上の単一拍子を使用。</div>
     </div>
-    <!-- v3.3.0r3r1 #B-1：連符モード（拍子と直交・複数 ON 可・16 三連 default ON） -->
+    <!-- v3.3.0r3r1 Step 3：連符 UI 再設計（2 行レーン・単純連符 6 ID + 複合連符 3 ID・default 全 OFF） -->
     <div class="metro-tuplet-section">
       <label class="metro-tuplet-label">連符モード（複数 ON 可・拍子と直交）</label>
-      <div class="metro-tuplet-toggles">
-        <label><input type="checkbox" class="tuplet-toggle" data-tuplet="8tri">  4 分三連</label>
-        <label><input type="checkbox" class="tuplet-toggle" data-tuplet="16tri" checked>  16 分三連（既定 ON）</label>
-        <label><input type="checkbox" class="tuplet-toggle" data-tuplet="16quint"> 16 分 5 連</label>
-        <label><input type="checkbox" class="tuplet-toggle" data-tuplet="16sept"> 16 分 7 連</label>
+      <!-- 1 行目：単純連符（L1 Simple Tuplet）= 1 拍を N 等分 -->
+      <div class="tuplet-row tuplet-row-simple">
+        <span class="tuplet-row-header">単純連符（1 拍を N 等分）</span>
+        <div class="metro-tuplet-toggles">
+          <label><input type="checkbox" class="tuplet-toggle" data-tuplet="duplet"> 2 連符</label>
+          <label><input type="checkbox" class="tuplet-toggle" data-tuplet="triplet"> 3 連符</label>
+          <label><input type="checkbox" class="tuplet-toggle" data-tuplet="quadruplet"> 4 連符</label>
+          <label><input type="checkbox" class="tuplet-toggle" data-tuplet="quintuplet"> 5 連符</label>
+          <label><input type="checkbox" class="tuplet-toggle" data-tuplet="sextuplet"> 6 連符</label>
+          <label><input type="checkbox" class="tuplet-toggle" data-tuplet="septuplet"> 7 連符</label>
+        </div>
       </div>
-      <p class="metro-tuplet-hint">ON にした連符の sub-pulse がメインクリックの間に小音で鳴ります。複数 ON で重ねがけ可。</p>
+      <!-- 2 行目：複合連符（L3 Compound Tuplet）= M 拍を N 等分 -->
+      <div class="tuplet-row tuplet-row-compound">
+        <span class="tuplet-row-header">複合連符（M 拍を N 等分）</span>
+        <div class="metro-tuplet-toggles">
+          <label><input type="checkbox" class="tuplet-toggle" data-tuplet="tuplet_2_3"> 2 拍 3 連</label>
+          <label><input type="checkbox" class="tuplet-toggle" data-tuplet="tuplet_3_4"> 3 拍 4 連</label>
+          <label><input type="checkbox" class="tuplet-toggle" data-tuplet="tuplet_4_5"> 4 拍 5 連</label>
+        </div>
+      </div>
+      <p class="metro-tuplet-hint">単純連符は 1 拍内 N 等分。複合連符は M 拍周期で N 等分（math emo / Algernon 系の 2 拍 3 連 hemiola など）。default 全 OFF。</p>
     </div>
     <button id="metroToggleBtn" class="btn-primary" type="button">START</button>
     <div class="row" style="margin-top:10px; gap:8px;">
@@ -2611,18 +2666,41 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
   // T-6：1 拍ごとの期待時刻群（performance.now ベース・現拍 + 直前 1 拍分を保持して onset 比較）
   // [{ ms: number, kind: 'beat'|'sub' }]  (古い方は最大 32 件で先頭から捨てる)
   const _expectedTickBuf = [];
-  // v3.3.0r3r1 #B-2：連符状態 LS キー（チェック状態を保存）
+  // v3.3.0r3r1 #B-2：連符状態 LS キー（チェック状態を保存・Step 3 で同キー維持／EMP-4 経路 c）
   const TUPLET_LS_KEY = 'steady_metro_tuplet_v33r3r1';
-  // T-3：連符種別 → 1 拍内の sub 分割数（メイン拍を含む合計分割数）
-  // 例：16 分三連 = 1 拍を 6 等分（4分音符の中に 16 分三連が 6 個）
+  // Step 3：単純連符（L1 Simple Tuplet）= 1 拍を N 等分
   const TUPLET_SUBDIVISIONS = {
-    '8tri':    3,   // 4 分三連（1 拍を 3 等分）
-    '16tri':   6,   // 16 分三連（1 拍を 6 等分）
-    '16quint': 5,   // 16 分 5 連（1 拍を 5 等分）
-    '16sept':  7    // 16 分 7 連（1 拍を 7 等分）
+    'duplet':     2,  // 2 連符
+    'triplet':    3,  // 3 連符
+    'quadruplet': 4,  // 4 連符
+    'quintuplet': 5,  // 5 連符
+    'sextuplet':  6,  // 6 連符
+    'septuplet':  7   // 7 連符
   };
-  // T-4：sub-pulse のピッチ（メイン C4/C3 と区別）
-  const SUB_PITCHES = { '8tri': 'E5', '16tri': 'C5', '16quint': 'A4', '16sept': 'F#4' };
+  // Step 3：単純連符 sub-pulse のピッチ（メイン C4/C3 と区別）
+  const SUB_PITCHES = {
+    'duplet':     'D5',
+    'triplet':    'E5',
+    'quadruplet': 'G5',
+    'quintuplet': 'A4',
+    'sextuplet':  'C5',
+    'septuplet':  'F#4'
+  };
+  // Step 3：複合連符（L3 Compound Tuplet）= M 拍を N 等分（EMP-3 方式 P3）
+  // M = 何拍周期 / N = sub-pulse 数（メイン拍含む等分数）
+  const COMPOUND_TUPLETS = {
+    'tuplet_2_3': { M: 2, N: 3, pitch: 'B4' },   // 2 拍 3 連（hemiola・math emo 必須）
+    'tuplet_3_4': { M: 3, N: 4, pitch: 'A4' },   // 3 拍 4 連
+    'tuplet_4_5': { M: 4, N: 5, pitch: 'G4' }    // 4 拍 5 連
+  };
+  // Step 3：旧 4 トグル ID → 新単純連符 ID への migration マップ（EMP-4 経路 c）
+  // legacyTuplet：旧 LS 値が入っているユーザー（飯野さん）が起動時に自動変換される
+  const LEGACY_TUPLET_MIGRATION = {
+    '8tri':    'triplet',     // 4 分三連 → 3 連符（1 拍 3 等分）
+    '16tri':   'sextuplet',   // 16 分三連 → 6 連符（1 拍 6 等分）
+    '16quint': 'quintuplet',  // 16 分 5 連 → 5 連符
+    '16sept':  'septuplet'    // 16 分 7 連 → 7 連符
+  };
 
   // v3.3.0r3 #2：bpm.value への代入は必ず safeSetTransportBpm() を経由する
   function safeSetTransportBpm(v) {
@@ -2644,19 +2722,68 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
     return v;
   }
 
+  // Step 3：拍子別アクセント preset（math emo / Algernon 系業界標準・AL001 v2 確定）
+  // 配列の各要素：1 = アクセント拍（強拍）／0 = 通常拍
+  // 5/4 = 3+2（Take Five 系）／7/8 = 2+2+3（math rock 標準）／9/8 = 3+3+3（compound triple meter）
+  // 内部キー：meter_5_4 / meter_7_8 / meter_9_8（A2 grep 整合）
+  const ACCENT_PRESETS = {
+    'meter_5_4': [1, 0, 0, 1, 0],          // 5/4 = 3+2
+    'meter_7_8': [1, 0, 1, 0, 1, 0, 0],    // 7/8 = 2+2+3
+    'meter_9_8': [1, 0, 0, 1, 0, 0, 1, 0, 0] // 9/8 = 3+3+3
+  };
+  // Step 3：metroSig select 値 → 内部 sigInfo（{sig: 拍数, presetKey: ACCENT_PRESETS キー or null}）
+  // 既存の単純拍子（4/4 / 3/4 / 6/8）は preset 不要・配列 [1,0,0,...] と等価
+  function parseMeterSelectValue(raw) {
+    // '5/4' '7/8' '9/8' '4' '3' '6' を受理
+    if (typeof raw !== 'string') raw = String(raw);
+    const m = raw.match(/^(\d+)\s*\/\s*(\d+)$/);
+    if (m) {
+      const numerator = parseInt(m[1], 10);
+      const key = 'meter_' + numerator + '_' + parseInt(m[2], 10);
+      return { sig: numerator, presetKey: ACCENT_PRESETS[key] ? key : null };
+    }
+    const n = parseInt(raw, 10) || 4;
+    return { sig: n, presetKey: null };
+  }
+  // Step 3：拍数（数値） → preset key 推定（sigSequence 経路から呼ばれる時に分母不明なので分子から推定）
+  // 5 → meter_5_4 / 7 → meter_7_8 / 9 → meter_9_8（math emo default で固定・将来 v3.3.0r3r2 で切替 UI）
+  function defaultAccentPresetKeyForSig(sigNumerator) {
+    if (sigNumerator === 5) return 'meter_5_4';
+    if (sigNumerator === 7) return 'meter_7_8';
+    if (sigNumerator === 9) return 'meter_9_8';
+    return null;
+  }
+  // Step 3：sigInfo を返す（accent preset 配列含む・dot 表示と sub-click 強調に共通使用）
+  // 既存 metroBuildBeatDots(sigOverride) の sigOverride が数値 or { sig, presetKey } の両対応
+  function _resolveSigInfo(sigOverride) {
+    if (sigOverride && typeof sigOverride === 'object' && 'sig' in sigOverride) {
+      return sigOverride;
+    }
+    if (typeof sigOverride === 'number' && sigOverride > 0) {
+      return { sig: sigOverride, presetKey: defaultAccentPresetKeyForSig(sigOverride) };
+    }
+    // sigOverride 未指定：metroSig select の現在値を使う
+    return parseMeterSelectValue(($('metroSig') && $('metroSig').value) || '4');
+  }
+
   function metroBuildBeatDots(sigOverride) {
-    const sig = sigOverride || parseInt($('metroSig').value, 10) || 4;
+    const sigInfo = _resolveSigInfo(sigOverride);
+    const sig = sigInfo.sig || 4;
+    const preset = sigInfo.presetKey ? ACCENT_PRESETS[sigInfo.presetKey] : null;
     const box = $('metroBeatDots');
+    if (!box) return;
     box.innerHTML = '';
     for (let i=0; i<sig; i++) {
       const d = document.createElement('div'); d.className = 'beat-dot';
+      // accent preset があれば強拍位置に accent class（後段 playBeat の音色強調と整合）
+      if (preset && preset[i] === 1) d.classList.add('accent');
       box.appendChild(d);
     }
   }
 
-  // v3.3.0r3 #5：sigSequence 文字列パース
-  // 受理形式：'4/4 x 2 → 6/8 x 1' / '4/4 x 4 -> 6/8 x 2' / '4/4*2, 6/8*1'
-  // 戻り値：[{sig: 4, bars: 2}, {sig: 6, bars: 1}, ...] or null
+  // v3.3.0r3 #5 / Step 3：sigSequence 文字列パース
+  // 受理形式：'4/4 x 2 → 6/8 x 1' / '4/4 x 4 -> 6/8 x 2' / '4/4*2, 6/8*1' / '5/4 x 2 → 7/8 x 1 → 9/8 x 1'（B7）
+  // 戻り値：[{sig: 4, bars: 2, presetKey: null|'meter_X_Y'}, ...] or null
   function parseSigSequence(text) {
     if (!text || !text.trim()) return null;
     // '→' '->' ',' で分割
@@ -2668,10 +2795,18 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
       const m = p.match(/(\d+)\s*\/\s*(\d+)\s*(?:[x×*]|\s)\s*(\d+)/);
       if (!m) continue;
       const numerator = parseInt(m[1], 10);
+      const denominator = parseInt(m[2], 10);
       const bars = parseInt(m[3], 10);
       if (numerator > 0 && bars > 0) {
         // 内部表現は分子のみ保持（既存メトロは sig=分子で動く・分母は表示用ヒント）
-        result.push({ sig: numerator, bars: bars, raw: m[1] + '/' + m[2] });
+        // Step 3：accentPreset key を分子・分母から特定（5/4・7/8・9/8 などの math emo 拍子）
+        const presetKey = 'meter_' + numerator + '_' + denominator;
+        result.push({
+          sig: numerator,
+          bars: bars,
+          raw: m[1] + '/' + m[2],
+          presetKey: ACCENT_PRESETS[presetKey] ? presetKey : null
+        });
       }
     }
     return result.length > 0 ? result : null;
@@ -2796,7 +2931,7 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
   // T-4：sub-pulse 音量（メインより弱め）
   const subClickVolume = -12;
 
-  // T-2：連符トグル状態の読み出し（DOM → object）
+  // T-2 / Step 3：連符トグル状態の読み出し（DOM → object・単純連符 + 複合連符 9 ID）
   function readTupletToggles() {
     const out = {};
     document.querySelectorAll('.tuplet-toggle').forEach(t => {
@@ -2812,11 +2947,45 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
   function saveTupletPattern(p) {
     try { localStorage.setItem(TUPLET_LS_KEY, JSON.stringify(p)); } catch(_){}
   }
-  // #B-2：init 時に LS から復元 ＋ change で保存（boot で呼ぶ）
+  // Step 3：LS migration（旧 4 トグル ID → 新単純連符 ID／EMP-4 経路 c）
+  // legacyTuplet：旧 8tri/16tri/16quint/16sept キーを保持してきた飯野さん設定を起動時に変換し
+  // 同じ TUPLET_LS_KEY に書き戻す。複合連符 3 ID は default false で追加（既存値は破壊しない）。
+  // 戻り値：migration 後の pattern object（boot 内でそのまま使用可）
+  function migrateLegacyTupletPattern(saved) {
+    if (!saved || typeof saved !== 'object') saved = {};
+    const out = {};
+    let migrated = false;
+    // 旧キーがあれば新キーへ転写（旧キーは out に残さない）
+    Object.keys(saved).forEach(k => {
+      if (LEGACY_TUPLET_MIGRATION[k]) {
+        const newId = LEGACY_TUPLET_MIGRATION[k];
+        // 同じ新 ID へ複数旧キーが衝突する場合は OR 結合（true 優先）
+        out[newId] = !!(out[newId] || saved[k]);
+        migrated = true;
+      } else {
+        out[k] = saved[k];
+      }
+    });
+    // 複合連符 3 ID を default false で追加（既存値があればそれを尊重）
+    Object.keys(COMPOUND_TUPLETS).forEach(id => {
+      if (out[id] == null) out[id] = false;
+    });
+    // 単純連符 6 ID も default false で追加（同上）
+    Object.keys(TUPLET_SUBDIVISIONS).forEach(id => {
+      if (out[id] == null) out[id] = false;
+    });
+    if (migrated) {
+      // 旧キー混在を物理排除して書き戻す
+      try { saveTupletPattern(out); } catch(_){}
+    }
+    return out;
+  }
+  // #B-2 / Step 3：init 時に LS から復元 → migration → DOM 反映 ＋ change で保存
   function initTupletUI() {
-    const saved = loadTupletPattern();
+    const raw = loadTupletPattern();
+    const saved = migrateLegacyTupletPattern(raw);
     document.querySelectorAll('.tuplet-toggle').forEach(t => {
-      if (saved[t.dataset.tuplet] != null) t.checked = saved[t.dataset.tuplet];
+      if (saved[t.dataset.tuplet] != null) t.checked = !!saved[t.dataset.tuplet];
       t.addEventListener('change', () => saveTupletPattern(readTupletToggles()));
     });
   }
@@ -2864,10 +3033,14 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
       const db = (vol > 0) ? (20 * Math.log10(vol)) : -60;
       if (_metroSynth.setVolume) _metroSynth.setVolume(db);
       const bpm = metroSetBpm($('metroBpmInput').value);
-      // v3.3.0r3 #5：sigSequence をパース。空なら単一拍子モード
+      // v3.3.0r3 #5 / Step 3：sigSequence をパース。空なら単一拍子モード（5/4・7/8・9/8 対応）
       _sigSequence = parseSigSequence($('metroSigSequence') ? $('metroSigSequence').value : '');
       _sigSeqBarCursor = 0; _sigSeqStepIdx = 0; _sigSeqStepBarCnt = 0;
-      const initialSig = _sigSequence ? _sigSequence[0].sig : (parseInt($('metroSig').value, 10) || 4);
+      // Step 3：metroSig select 値（'5/4' '7/8' '9/8' 等）を sigInfo へ正規化
+      const _selSigInfo = parseMeterSelectValue(($('metroSig') && $('metroSig').value) || '4');
+      const initialSig = _sigSequence ? _sigSequence[0].sig : _selSigInfo.sig;
+      // Step 3：accent preset key（B7：sigSequence 経由の切替で各 step.presetKey を参照）
+      let curPresetKey = _sigSequence ? _sigSequence[0].presetKey : _selSigInfo.presetKey;
       const countIn = $('metroCountIn').checked;
       // v3.3.0r3r1 #B-3：連符パターンスナップショット（START 時点で固定）＋ sub シンセ準備
       _tupletConfig = readTupletToggles();
@@ -2878,7 +3051,8 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
       }
       // v3.3.0r3 #2：bpm 代入は safeSetTransportBpm() 経由（ガード前なので通る）
       safeSetTransportBpm(bpm);
-      metroBuildBeatDots(initialSig);
+      // Step 3：accent preset を含む sigInfo で初期 dots を構築
+      metroBuildBeatDots({ sig: initialSig, presetKey: curPresetKey });
       _metroBeatIdx = 0;
       driftClear();
       driftStart();
@@ -2911,20 +3085,33 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
               _sigSeqStepIdx = (_sigSeqStepIdx + 1) % _sigSequence.length;
               _sigSeqStepBarCnt = 0;
               curSig = _sigSequence[_sigSeqStepIdx].sig;
+              // Step 3：accent preset も切替（B7：sigSequence 経由の preset 切替）
+              curPresetKey = _sigSequence[_sigSeqStepIdx].presetKey;
               // DOM 操作は描画スレッドへ (Tone.Draw 経由) で audio thread block 回避
+              const _sigInfoForBuild = { sig: curSig, presetKey: curPresetKey };
               if (Tone.Draw && Tone.Draw.schedule) {
-                Tone.Draw.schedule(() => { try { metroBuildBeatDots(curSig); } catch(_){} }, time);
+                Tone.Draw.schedule(() => { try { metroBuildBeatDots(_sigInfoForBuild); } catch(_){} }, time);
               } else {
-                metroBuildBeatDots(curSig);
+                metroBuildBeatDots(_sigInfoForBuild);
               }
             }
           }
         }
         const idx = _metroBeatIdx % curSig;
-        const note = (idx === 0) ? 'C4' : 'C3';
+        // Step 3：アクセント preset 適用（5/4=3+2 / 7/8=2+2+3 / 9/8=3+3+3）
+        // preset 配列の値が 1 = 強拍（C4 / accent class）／0 = 通常拍（C3）
+        const preset = curPresetKey ? ACCENT_PRESETS[curPresetKey] : null;
+        let isAccent;
+        if (preset && preset.length === curSig) {
+          isAccent = preset[idx] === 1;
+        } else {
+          // preset 無し（4/4 / 3/4 / 6/8 等）：拍 0 のみ強拍（既存挙動維持）
+          isAccent = (idx === 0);
+        }
+        const note = isAccent ? 'C4' : 'C3';
         // 音は audio クロック上の time でスケジュール
         _metroSynth.trigger(note, '32n', time);
-        // ドット更新は描画スレッド（time に同期）
+        // ドット更新は描画スレッド（time に同期・Step 3：accent class は metroBuildBeatDots 側で付与済）
         if (Tone.Draw && Tone.Draw.schedule) {
           Tone.Draw.schedule(() => {
             const dots = document.querySelectorAll('#metroBeatDots .beat-dot');
@@ -3000,6 +3187,38 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
       // 先読み量を JS イベントループ揺らぎより十分大きくして drift を遮断する。
       Tone.Transport.lookAhead = 0.1;
 
+      // Step 3 EMP-3：複合連符 sub-pulse（M 拍 N 等分）= 別 voice ＋ 独立 scheduleRepeat
+      // 既存 playBeat（4n 周期）と独立並走し、sigSequence 拍子変化と相互干渉しない。
+      // 各複合連符ごとに M 拍周期で scheduleRepeat 登録 → cb 内で N 個の sub-pulse を nested schedule。
+      // 例：2 拍 3 連 → '2n.'（= '2n' + '4n' = 2 拍）周期 cb 内で t / t + 2*spb/3 / t + 4*spb/3 を予約
+      const _scheduleCompoundTuplets = () => {
+        const spbSec = 60 / bpm;
+        Object.keys(COMPOUND_TUPLETS).forEach(id => {
+          if (!_tupletConfig[id]) return;
+          const cfg = COMPOUND_TUPLETS[id];
+          const M = cfg.M, N = cfg.N, pitch = cfg.pitch || 'B4';
+          if (M < 1 || N < 2) return;
+          // M 拍 = M * spbSec 秒。Tone.Transport の interval に秒指定を使い拍子変化と独立化
+          const periodSec = M * spbSec;
+          const stepSec = periodSec / N;
+          Tone.Transport.scheduleRepeat((time) => {
+            for (let i = 0; i < N; i++) {
+              const subAudioTime = time + stepSec * i;
+              try {
+                if (_subClickSynth && _subClickSynth.trigger) {
+                  _subClickSynth.trigger(pitch, '64n', subAudioTime);
+                }
+              } catch(_){}
+              // T-6 互換：sub-beat 期待時刻も記録（onset 比較で最近接判定に使う）
+              try {
+                const subPerfMs = _audioToPerfMs(subAudioTime);
+                _expectedTickPush(subPerfMs, 'sub');
+              } catch(_){}
+            }
+          }, periodSec, 0);
+        });
+      };
+
       if (countIn) {
         // v3.3.0r3 hotfix complement（B-3）：countIn を AudioContext.currentTime ベースに統一。
         // setTimeout の累積誤差ではなく Web Audio 時刻軸で 4 拍を予約し、Transport も
@@ -3013,11 +3232,13 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
         // 4 拍カウントイン後に Transport を起動（時刻指定 start で setTimeout 不要）
         const transportStartAt = startAt + 4 * spb;
         Tone.Transport.scheduleRepeat((time) => playBeat(time), '4n');
+        _scheduleCompoundTuplets();
         Tone.Transport.start(transportStartAt);
         // _metroLoopId は legacy interface（metroStop の clearTimeout 経路は no-op で安全）
         _metroLoopId = null;
       } else {
         Tone.Transport.scheduleRepeat((time) => playBeat(time), '4n');
+        _scheduleCompoundTuplets();
         Tone.Transport.start();
       }
       _metroRunning = true;
@@ -3814,7 +4035,11 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
     // METRO
     $('metroBpmSlider').addEventListener('input', (e) => metroSetBpm(e.target.value));
     $('metroBpmInput').addEventListener('change', (e) => metroSetBpm(e.target.value));
-    $('metroSig').addEventListener('change', metroBuildBeatDots);
+    // Step 3：metroSig 変更時に accent preset を反映するため sigInfo 経由で再描画
+    $('metroSig').addEventListener('change', () => {
+      const info = parseMeterSelectValue($('metroSig').value);
+      metroBuildBeatDots(info);
+    });
     $('metroVol').addEventListener('input', (e) => {
       // v3.3.0r2 B-3：ceiling 1.5 統一・LS 永続化（既存ユーザー値尊重）
       const raw = parseInt(e.target.value, 10);
@@ -5032,7 +5257,7 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
   window.STEADY_applyEnemyGoldFrame = applyEnemyGoldFrame;
 
   // ============================================================
-  // v3.3.0r3r1-step2 A：Tap Tempo（AL001 v2 仕様確定実装）
+  // v3.3.0r3r1 A：Tap Tempo（AL001 v2 仕様確定実装 ／ Step 2 導入・Step 3 継承）
   //   rolling window 4-8 + median filter + 1.5s reset
   //   30-300 BPM フィルタ / iOS pointerdown + performance.now()
   // ============================================================
@@ -5071,7 +5296,7 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
   }
 
   // ============================================================
-  // v3.3.0r3r1-step2 B：HOME 録音大ボタン（既存 micStart / micStop 流用）
+  // v3.3.0r3r1 B：HOME 録音大ボタン（既存 micStart / micStop 流用 ／ Step 2 導入・Step 3 継承）
   //   待機: 🎤 / 録音中: ⏹ + mm:ss
   // ============================================================
   let isRecording = false;
@@ -5140,7 +5365,7 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
     // v3.3.0r3r1 hotfix：連符 UI 初期化＋タップパッド bind（Phase 5 とは独立スコープ）
     try { initTupletUI(); } catch(_){}
     try { setupMetroTapFallback(); } catch(_){}
-    // v3.3.0r3r1-step2：Tap Tempo + HOME 録音大ボタン bind
+    // v3.3.0r3r1：Tap Tempo + HOME 録音大ボタン bind（Step 2 導入・Step 3 継承）
     try { setupTapTempo(); } catch(_){}
     try { setupHomeRecordButton(); } catch(_){}
     // GAME タブ表示時に pity / 敵金枠を反映
@@ -5215,17 +5440,17 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
       $('setCalibStatus').textContent = '較正済み：オフセット ' + off.offsetMs.toFixed(1) + ' ms';
     }
 
-    // SW 登録（v3.3.0r3r1 Step 2：Tap Tempo + 録音 HOME 大ボタン化）
-    window.__version = 'v3.3.0r3r1-step2';
+    // SW 登録（v3.3.0r3r1 Step 3：連符 UI 再設計 + 拍子 5/4・7/8・9/8 + アクセント preset）
+    window.__version = 'v3.3.0r3r1-step3';
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./steady-sw.js?v=3.3.0r3r1-step2', { scope: './' })
+      navigator.serviceWorker.register('./steady-sw.js?v=3.3.0r3r1-step3', { scope: './' })
         .catch(err => { if (window.STEADY_DEBUG) console.warn('SW register failed:', err); });
     }
 
     // Phase 5 演出・洗練統合 init（boot 末尾呼び出し）
     try { initPhase5(); } catch(e){ if (window.STEADY_DEBUG) console.warn('initPhase5 failed:', e); }
 
-    if (window.STEADY_DEBUG) console.log('STEADY DOJO QUEST v3.3.0r3r1-step2 ready (Step 2：Tap Tempo + 録音 HOME 大ボタン化／Phase 5 機能継承)');
+    if (window.STEADY_DEBUG) console.log('STEADY DOJO QUEST v3.3.0r3r1-step3 ready (Step 3：連符 UI 再設計 + 拍子 5/4・7/8・9/8 + アクセント preset／Phase 5 機能継承)');
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
