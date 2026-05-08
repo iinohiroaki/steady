@@ -26,8 +26,8 @@
 
 'use strict';
 
-// VERSION tag: 'v3.3.0r4-hotfix1'（精度判定 root cause hotfix：閾値緩和 0.06→0.020 / pad 常時表示 / RMS UI / silent failure ガード／AL007 / 2026-05-08）
-const VERSION = 'steady-v3.3.0r4-hotfix1';
+// VERSION tag: 'v3.3.0r4-hotfix1.3'（AA 完全準拠版：WCAG AAA 5 色 + silent failure 第 5/6 経路除去 + dvh + PWA icon／AL007 / 2026-05-09）
+const VERSION = 'steady-v3.3.0r4-hotfix1.3';
 const CACHE_STATIC = VERSION + '-static';
 const CACHE_RUNTIME = VERSION + '-runtime';
 
@@ -77,7 +77,7 @@ self.addEventListener('activate', (event) => {
     caches.keys()
       .then((keys) =>
         Promise.all(
-          // VERSION（= 'steady-v3.3.0r4'）で始まらない cache は全削除
+          // VERSION（現行 const 値）で始まらない cache は全削除
           // → 旧 Blob URL SW 由来の 'steady-v3.3.0r3-p6' / 過去 block9 系 / Step 1 cache も自動回収
           keys.filter((k) => !k.startsWith(VERSION)).map((k) => caches.delete(k).catch(() => {}))
         )
