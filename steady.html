@@ -161,6 +161,39 @@ header {
   font-size: 0.7rem; color: var(--muted, #888); margin-top: 4px;
 }
 
+/* v3.3.0r3r1 M-3：マイク拒否時の画面タップ fallback パッド（ずれインジ直下） */
+.metro-tap-pad {
+  display: block; width: 100%; margin: 8px 0 0 0; padding: 14px 12px;
+  font-size: 15px; font-weight: 600;
+  background: var(--accent, #7c6af7); color: #fff;
+  border: none; border-radius: 8px; cursor: pointer;
+  transition: opacity 0.15s, transform 0.05s;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.metro-tap-pad:active { opacity: 0.75; transform: scale(0.98); }
+.metro-tap-pad[hidden] { display: none; }
+
+/* v3.3.0r3r1 #B-1：連符モード UI */
+.metro-tuplet-section {
+  margin: 10px 0 12px; padding: 10px 12px;
+  background: rgba(124,106,247,0.05);
+  border: 1px solid var(--border, #e5e5e5); border-radius: 8px;
+}
+.metro-tuplet-section .metro-tuplet-label {
+  display: block; font-weight: 600; font-size: 0.9rem;
+  color: var(--text, #333); margin-bottom: 6px;
+}
+.metro-tuplet-section .metro-tuplet-toggles {
+  display: flex; flex-wrap: wrap; gap: 12px 16px; margin-top: 4px;
+}
+.metro-tuplet-section .metro-tuplet-toggles label {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.85rem; cursor: pointer;
+}
+.metro-tuplet-section .metro-tuplet-hint {
+  margin: 6px 0 0; font-size: 0.72rem; color: var(--muted, #888);
+}
+
 main {
   max-width: var(--maxw); margin: 0 auto;
   padding: 16px; padding-bottom: 80px;
@@ -1146,6 +1179,17 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
       </label>
       <div class="muted-text small" id="metroSigSequenceHint" style="flex:1 1 100%;">空欄なら上の単一拍子を使用。</div>
     </div>
+    <!-- v3.3.0r3r1 #B-1：連符モード（拍子と直交・複数 ON 可・16 三連 default ON） -->
+    <div class="metro-tuplet-section">
+      <label class="metro-tuplet-label">連符モード（複数 ON 可・拍子と直交）</label>
+      <div class="metro-tuplet-toggles">
+        <label><input type="checkbox" class="tuplet-toggle" data-tuplet="8tri">  4 分三連</label>
+        <label><input type="checkbox" class="tuplet-toggle" data-tuplet="16tri" checked>  16 分三連（既定 ON）</label>
+        <label><input type="checkbox" class="tuplet-toggle" data-tuplet="16quint"> 16 分 5 連</label>
+        <label><input type="checkbox" class="tuplet-toggle" data-tuplet="16sept"> 16 分 7 連</label>
+      </div>
+      <p class="metro-tuplet-hint">ON にした連符の sub-pulse がメインクリックの間に小音で鳴ります。複数 ON で重ねがけ可。</p>
+    </div>
     <button id="metroToggleBtn" class="btn-primary" type="button">START</button>
     <div class="row" style="margin-top:10px; gap:8px;">
       <button id="metroSendBattleBtn" class="btn-secondary grow" type="button">この BPM で次回戦闘を組む</button>
@@ -1166,6 +1210,8 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
         <input type="checkbox" id="driftShowMs"> 数値 ms も表示（補助）
       </label>
       <div class="muted-text small" id="driftMsLabel" style="display:none; margin-top:4px;"></div>
+      <!-- v3.3.0r3r1 M-3：マイク拒否時の画面タップ fallback。マイク許可時は hidden。 -->
+      <button type="button" id="metroTapPad" class="metro-tap-pad" hidden>🥁 ここをタップして叩く（マイク無し時）</button>
     </div>
   </div>
 </section>
@@ -2502,6 +2548,25 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
   let _sigSeqBarCursor = 0;       // 現在何小節目か（bar 単位）
   let _sigSeqStepIdx = 0;         // sequence 配列のインデックス
   let _sigSeqStepBarCnt = 0;      // 現 step 内で消化した bar 数
+  // v3.3.0r3r1 M-1/M-2/T-3/T-4/T-6：メトロ単独 mic / 連符 sub-pulse / 期待時刻配列
+  let _metroMicAttached = false;       // M-1：メトロ起動時に micStart 成功したか
+  let _subClickSynth = null;           // T-4：連符 sub-pulse 専用シンセ（メイン clickSynth と独立）
+  let _tupletConfig = {};              // T-2/T-3：現在再生中の連符パターン（startBeat 時にスナップショット）
+  // T-6：1 拍ごとの期待時刻群（performance.now ベース・現拍 + 直前 1 拍分を保持して onset 比較）
+  // [{ ms: number, kind: 'beat'|'sub' }]  (古い方は最大 32 件で先頭から捨てる)
+  const _expectedTickBuf = [];
+  // v3.3.0r3r1 #B-2：連符状態 LS キー（チェック状態を保存）
+  const TUPLET_LS_KEY = 'steady_metro_tuplet_v33r3r1';
+  // T-3：連符種別 → 1 拍内の sub 分割数（メイン拍を含む合計分割数）
+  // 例：16 分三連 = 1 拍を 6 等分（4分音符の中に 16 分三連が 6 個）
+  const TUPLET_SUBDIVISIONS = {
+    '8tri':    3,   // 4 分三連（1 拍を 3 等分）
+    '16tri':   6,   // 16 分三連（1 拍を 6 等分）
+    '16quint': 5,   // 16 分 5 連（1 拍を 5 等分）
+    '16sept':  7    // 16 分 7 連（1 拍を 7 等分）
+  };
+  // T-4：sub-pulse のピッチ（メイン C4/C3 と区別）
+  const SUB_PITCHES = { '8tri': 'E5', '16tri': 'C5', '16quint': 'A4', '16sept': 'F#4' };
 
   // v3.3.0r3 #2：bpm.value への代入は必ず safeSetTransportBpm() を経由する
   function safeSetTransportBpm(v) {
@@ -2613,6 +2678,116 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
     const box = $('driftViz'); if (box) box.innerHTML = '';
   }
 
+  // ----------------------------------------------------------
+  // v3.3.0r3r1 hotfix：メトロ単独 onset → drift 接続 ＋ 連符 sub-pulse
+  // ----------------------------------------------------------
+  // T-6：期待時刻バッファ クリア
+  function _expectedTickClear() { _expectedTickBuf.length = 0; }
+  // T-6：期待時刻 push（古い方は 32 件超で先頭から捨てる）
+  function _expectedTickPush(ms, kind) {
+    _expectedTickBuf.push({ ms: ms, kind: kind || 'beat' });
+    while (_expectedTickBuf.length > 32) _expectedTickBuf.shift();
+  }
+  // T-6 / A-2：onset の performance.now 値に最近接の期待時刻を返す（連符 OFF/ON 共通）
+  // 連符 OFF 時 = beat 期待時刻のみ／連符 ON 時 = beat + sub 期待時刻群から最近接
+  function _resolveExpectedTickMs(onsetMs) {
+    if (_expectedTickBuf.length === 0) return null;
+    let best = null;
+    let bestAbs = Infinity;
+    for (let i = 0; i < _expectedTickBuf.length; i++) {
+      const t = _expectedTickBuf[i].ms;
+      const ab = Math.abs(onsetMs - t);
+      if (ab < bestAbs) { bestAbs = ab; best = t; }
+    }
+    return best;
+  }
+
+  // M-2：mic onset → driftPush 接続関数（mic 経路 / tap 経路 共通）
+  function onMetroOnset(onsetMs) {
+    if (!_metroRunning) return;
+    const expected = _resolveExpectedTickMs(onsetMs);
+    if (expected == null) return;
+    const driftMs = onsetMs - expected;
+    // 250ms 超は外れ打扱いで捨てる（誤検出 / refractory 漏れ対策）
+    if (Math.abs(driftMs) > 250) return;
+    try { driftPush(driftMs); } catch(_){}
+  }
+  // M-2：grep / 外部接続用 export
+  window.__steadyMetroDriftHook = onMetroOnset;
+
+  // T-4：連符 sub-pulse 専用シンセ（メイン clickSynth より弱音・別ピッチ）
+  // メイン C4/C3 と耳で区別がつくよう dB -12（音圧約 1/4）かつ短い envelope。
+  function buildSubClickSynth() {
+    if (typeof Tone === 'undefined') return null;
+    const noise = new Tone.NoiseSynth({
+      noise: { type: 'pink' },
+      envelope: { attack: 0.001, decay: 0.012, sustain: 0, release: 0.008 }
+    });
+    const bpf = new Tone.Filter({ type: 'bandpass', frequency: 6500, Q: 6 });
+    noise.connect(bpf); bpf.toDestination();
+    return {
+      kind: 'subclick',
+      trigger: (n, d, time) => {
+        try {
+          if (time != null) noise.triggerAttackRelease(d || '64n', time);
+          else noise.triggerAttackRelease(d || '64n');
+        } catch(_){}
+      },
+      setVolume: (db) => { try { noise.volume.value = db; } catch(_){} },
+      dispose: () => { try { noise.dispose(); bpf.dispose(); } catch(_){} }
+    };
+  }
+  // T-4：sub-pulse 音量（メインより弱め）
+  const subClickVolume = -12;
+
+  // T-2：連符トグル状態の読み出し（DOM → object）
+  function readTupletToggles() {
+    const out = {};
+    document.querySelectorAll('.tuplet-toggle').forEach(t => {
+      out[t.dataset.tuplet] = !!t.checked;
+    });
+    return out;
+  }
+  // #B-2：tuplet 状態 LS load / save
+  function loadTupletPattern() {
+    try { return JSON.parse(localStorage.getItem(TUPLET_LS_KEY) || '{}') || {}; }
+    catch(_) { return {}; }
+  }
+  function saveTupletPattern(p) {
+    try { localStorage.setItem(TUPLET_LS_KEY, JSON.stringify(p)); } catch(_){}
+  }
+  // #B-2：init 時に LS から復元 ＋ change で保存（boot で呼ぶ）
+  function initTupletUI() {
+    const saved = loadTupletPattern();
+    document.querySelectorAll('.tuplet-toggle').forEach(t => {
+      if (saved[t.dataset.tuplet] != null) t.checked = saved[t.dataset.tuplet];
+      t.addEventListener('change', () => saveTupletPattern(readTupletToggles()));
+    });
+  }
+
+  // M-3：マイク拒否時の画面タップ fallback パッド（pointerdown で onMetroOnset）
+  function setupMetroTapFallback() {
+    const pad = document.getElementById('metroTapPad');
+    if (!pad) return;
+    if (pad._steadyBound) return;
+    pad._steadyBound = true;
+    // pointerdown：tap.driftPush 経路（M-3）
+    pad.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      if (_metroRunning) onMetroOnset(performance.now());
+    });
+  }
+
+  // M-1：mic 状態に応じてタップパッド表示を切替
+  function _updateTapPadVisibility() {
+    const pad = document.getElementById('metroTapPad');
+    if (!pad) return;
+    // メトロ停止中 = 隠す
+    if (!_metroRunning) { pad.hidden = true; return; }
+    // メトロ稼働中：mic 取得失敗時のみ表示（マイク有り時はタップ不要）
+    pad.hidden = _metroMicAttached;
+  }
+
   // v3.3.0r3 #3：debounce（START ボタン連打防止・250ms）
   let _metroToggleDebounce = 0;
   async function metroToggle() {
@@ -2638,14 +2813,34 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
       _sigSeqBarCursor = 0; _sigSeqStepIdx = 0; _sigSeqStepBarCnt = 0;
       const initialSig = _sigSequence ? _sigSequence[0].sig : (parseInt($('metroSig').value, 10) || 4);
       const countIn = $('metroCountIn').checked;
+      // v3.3.0r3r1 #B-3：連符パターンスナップショット（START 時点で固定）＋ sub シンセ準備
+      _tupletConfig = readTupletToggles();
+      const _hasAnyTuplet = Object.keys(_tupletConfig).some(k => _tupletConfig[k]);
+      if (_hasAnyTuplet) {
+        if (!_subClickSynth) _subClickSynth = buildSubClickSynth();
+        if (_subClickSynth && _subClickSynth.setVolume) _subClickSynth.setVolume(subClickVolume);
+      }
       // v3.3.0r3 #2：bpm 代入は safeSetTransportBpm() 経由（ガード前なので通る）
       safeSetTransportBpm(bpm);
       metroBuildBeatDots(initialSig);
       _metroBeatIdx = 0;
       driftClear();
       driftStart();
+      _expectedTickClear();
 
       let curSig = initialSig;
+      // v3.3.0r3r1 T-6：AudioContext.currentTime（秒）→ performance.now（ms）変換用 anchor
+      // playBeat callback 1 回目で取得し、以後は (time - audioAnchor) * 1000 + perfAnchor で換算
+      let _audioAnchor = null;
+      let _perfAnchor = null;
+      const _audioToPerfMs = (audioTimeSec) => {
+        if (_audioAnchor == null) {
+          _audioAnchor = audioTimeSec;
+          _perfAnchor = performance.now();
+          return _perfAnchor;
+        }
+        return _perfAnchor + (audioTimeSec - _audioAnchor) * 1000;
+      };
       // v3.3.0r3 hotfix complement（B-3/B-4）：playBeat は scheduleRepeat callback の
       // time（AudioContext.currentTime 基準秒）を発音時刻として使う。Web Audio クロックで
       // 駆動するため setInterval/setTimeout の累積誤差を回避（drift 解消の核）。
@@ -2685,9 +2880,36 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
           dots.forEach(d => d.classList.remove('on'));
           if (dots[idx]) dots[idx].classList.add('on');
         }
-        // 期待時刻 = 開始から (_metroBeatIdx) * spb。マイク onset と比較するため記録
-        // performance.now と AudioContext.currentTime のズレは microtask 1 frame 内で許容
-        _metroLastBeatExpected = performance.now();
+        // T-6：beat 期待時刻（performance.now ベース）を記録
+        const beatPerfMs = _audioToPerfMs(time);
+        _expectedTickPush(beatPerfMs, 'beat');
+        _metroLastBeatExpected = beatPerfMs;
+
+        // T-3 / T-4：連符 sub-pulse スケジューリング。playBeat 内で N-1 個の sub-beat を
+        // 等間隔予約。A-2 _resolveExpectedTickMs と整合するため期待時刻も同時記録。
+        // 1 拍 = spb 秒（= 60/bpm）。N 等分なら i 番目の sub は time + (spb / N) * i。
+        const spbSec = 60 / bpm;
+        Object.keys(_tupletConfig).forEach(tk => {
+          if (!_tupletConfig[tk]) return;
+          const N = TUPLET_SUBDIVISIONS[tk] || 0;
+          if (N < 2) return;
+          const pitch = SUB_PITCHES[tk] || 'C5';
+          const stepSec = spbSec / N;
+          // i=0 はメイン拍と同時刻（sub は鳴らさない）。i=1..N-1 を予約。
+          // sub-pulse  scheduleRepeat ではなく playBeat 内 trigger で予約（B-3 推奨方式）
+          for (let i = 1; i < N; i++) {
+            const subAudioTime = time + stepSec * i;
+            try {
+              if (_subClickSynth && _subClickSynth.trigger) {
+                _subClickSynth.trigger(pitch, '64n', subAudioTime);
+              }
+            } catch(_){}
+            // T-6：sub-beat 期待時刻も記録（onset 比較で最近接判定に使う）
+            const subPerfMs = _audioToPerfMs(subAudioTime);
+            _expectedTickPush(subPerfMs, 'sub');
+          }
+        });
+
         _metroBeatIdx++;
       };
 
@@ -2697,6 +2919,25 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
       // ずれ取得用：マイクが既に走っていれば onset コールバックで driftPush するが、
       // メトロ単独では onset 検出 stub として _metroLastBeatExpected を window 公開（外から接続用）
       window.__steadyMetroBeatExpected = () => _metroLastBeatExpected;
+
+      // v3.3.0r3r1 M-1：メトロ START 時に micStart を自動起動（broken-promise 修復本丸）
+      // 既存 `micStart` は道場の `_onsetCb` を上書きする仕様のため、メトロでは onMetroOnset を渡す。
+      // mic 拒否（NotAllowedError）／不可（getUserMedia 例外）→ catch でタップパッド fallback。
+      _metroMicAttached = false;
+      try {
+        const micOk = await micStart(onMetroOnset);
+        // micStart は失敗時 false を返す（denied 経路で例外を投げない実装）／ true で成功
+        _metroMicAttached = (micOk === true);
+        if (!_metroMicAttached) {
+          // micPermission denied 等：fallback path
+          if (window.STEADY_DEBUG) console.warn('[metro] mic unavailable, falling back to tap detection');
+        }
+      } catch (err) {
+        // 想定外の例外（catch.*mic 経路）
+        _metroMicAttached = false;
+        if (window.STEADY_DEBUG) console.warn('[metro] micStart threw, falling back to tap detection', err);
+      }
+      _updateTapPadVisibility();
 
       // v3.3.0r3 hotfix complement（B-4）：lookAhead 0.1s 固定明示。
       // Web Audio scheduling の look-ahead window を 100ms に固定し、スケジューラの
@@ -2748,6 +2989,15 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
     }
     if (_metroLoopId) { clearTimeout(_metroLoopId); _metroLoopId = null; }
     if (_driftRaf) { cancelAnimationFrame(_driftRaf); _driftRaf = 0; }
+    // v3.3.0r3r1 M-1：メトロ起動時に CEO が立ち上げた mic を対称停止
+    // （_metroMicAttached フラグで道場側 micStart と衝突しないようガード）
+    if (_metroMicAttached) {
+      try { micStop(); } catch(_){}
+      _metroMicAttached = false;
+    }
+    // T-6：期待時刻バッファクリア（次回 START でリセットされるが念のため）
+    _expectedTickClear();
+    _updateTapPadVisibility();
     document.querySelectorAll('#metroBeatDots .beat-dot').forEach(d => d.classList.remove('on'));
     $('metroToggleBtn').textContent = 'START';
   }
@@ -4731,6 +4981,9 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
     try { applyOledMode(); } catch(_){}
     try { renderStreakFlameFixed(); } catch(_){}
     try { setupMetroVizCanvas(); } catch(_){}
+    // v3.3.0r3r1 hotfix：連符 UI 初期化＋タップパッド bind（Phase 5 とは独立スコープ）
+    try { initTupletUI(); } catch(_){}
+    try { setupMetroTapFallback(); } catch(_){}
     // GAME タブ表示時に pity / 敵金枠を反映
     try {
       setTimeout(() => {
@@ -4803,45 +5056,16 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
       $('setCalibStatus').textContent = '較正済み：オフセット ' + off.offsetMs.toFixed(1) + ' ms';
     }
 
-    // SW 登録（v3.3.0r3 にバンプ）
-    try {
-      if ('serviceWorker' in navigator) {
-        const swCode = `
-          const CACHE = 'steady-v3.3.0r3-p5';
-          const URLS = ['./', './steady.html', './vendor/tone.js', './vendor/chart.js'];
-          self.addEventListener('install', (e) => {
-            e.waitUntil(caches.open(CACHE).then(c => c.addAll(URLS).catch(()=>{})));
-            self.skipWaiting();
-          });
-          self.addEventListener('activate', (e) => {
-            e.waitUntil(caches.keys().then(keys => Promise.all(
-              keys.filter(k => k !== CACHE && k.startsWith('steady-')).map(k => caches.delete(k))
-            )).then(() => self.clients.claim()));
-          });
-          self.addEventListener('fetch', (e) => {
-            const req = e.request;
-            if (req.method !== 'GET') return;
-            const isNav = req.mode === 'navigate';
-            const isCached = URLS.some(u => req.url === u || req.url.endsWith(u.replace('./', '/')));
-            if (isNav || isCached) {
-              e.respondWith(caches.match(req).then(cached => cached || fetch(req).then(res => {
-                const clone = res.clone();
-                caches.open(CACHE).then(c => c.put(req, clone)).catch(()=>{});
-                return res;
-              }).catch(()=>cached || caches.match('./steady.html'))));
-            }
-          });
-        `;
-        const blob = new Blob([swCode], { type: 'application/javascript' });
-        const swUrl = URL.createObjectURL(blob) + '?v=3.3.0r3-p5';
-        navigator.serviceWorker.register(swUrl).catch(err => { if (window.STEADY_DEBUG) console.warn('SW register failed:', err); });
-      }
-    } catch (_) { /* noop */ }
+    // SW 登録（v3.3.0r3r1 Step 1：物理 steady-sw.js へ一元化）
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./steady-sw.js?v=3.3.0r3r1-step1', { scope: './' })
+        .catch(err => { if (window.STEADY_DEBUG) console.warn('SW register failed:', err); });
+    }
 
     // Phase 5 演出・洗練統合 init（boot 末尾呼び出し）
     try { initPhase5(); } catch(e){ if (window.STEADY_DEBUG) console.warn('initPhase5 failed:', e); }
 
-    if (window.STEADY_DEBUG) console.log('STEADY DOJO QUEST v3.3.0r3-p5 ready (Phase 5 演出洗練統合・装備カード二層／damage popup／GACHA_TIMING／pity／レベルアップ batch／敵 HUD 金枠／HOME emo／METRO 波形／多階層 judgment＋ms／combo multiplier／hitstop+shake／streak／polish 5 点)');
+    if (window.STEADY_DEBUG) console.log('STEADY DOJO QUEST v3.3.0r3r1-step1 ready (Step 1：SW 二重登録解消・物理 steady-sw.js 一元化／Phase 5 機能継承)');
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
