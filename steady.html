@@ -5625,6 +5625,14 @@ body.home-emo #tab-home .card-primary { box-shadow: 0 1px 0 var(--border); }
     try { initPhase5(); } catch(e){ if (window.STEADY_DEBUG) console.warn('initPhase5 failed:', e); }
 
     if (window.STEADY_DEBUG) console.log('STEADY DOJO QUEST v3.3.0r3r2 ready (録音 playback 実装 + EMP-3 別 voice + メトロ衝突 block + 軽微 2 件／Phase 5 機能継承)');
+
+    // v3.3.0r3r2 A 補完：pagehide で blob URL revoke（iOS Safari 14.5+ unload leak 対策・EMP002 重要昇格項目本リリース内吸収）
+    window.addEventListener('pagehide', () => {
+      if (_lastRecordBlobUrl) {
+        try { URL.revokeObjectURL(_lastRecordBlobUrl); } catch(_){}
+        _lastRecordBlobUrl = null;
+      }
+    }, { capture: true });
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
